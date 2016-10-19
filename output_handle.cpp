@@ -1,12 +1,11 @@
 #include <stdio.h>
 #include <windows.h>
 #include "debug.h"
+#include "output_handle.h"
 
-struct oskinfo {
-	HWND hwnd;
-} osk_info;
+struct oskinfo osk_info;
 
-POINT key_pos_info[] = {
+static POINT key_pos_info[] = {
 	{87, 152},	/* a */
 	{251, 196},	/* b */
 	{185, 191},	/* ... */
@@ -50,7 +49,7 @@ int osk_init(void)
 		return 0;
 }
 
-int get_key_pos(char key, int *x, int *y)
+static int get_key_pos(char key, int *x, int *y)
 {
 	if (key < 'A' || key > 'z')
 		return -1;
@@ -61,7 +60,7 @@ int get_key_pos(char key, int *x, int *y)
 	return 0;
 }
 
-int osk_key_down(char key)
+static int osk_key_down(char key)
 {
 	int x, y;
 	int ret = 0;
@@ -73,7 +72,7 @@ int osk_key_down(char key)
 	return ret;
 }
 
-int osk_key_up(char key)
+static int osk_key_up(char key)
 {
 	int x, y;
 	int ret = 0;
@@ -100,7 +99,7 @@ int osk_to_target(HWND target, char key)
 	}
 }
 
-int unit_test_send_info_to_notepad(void)
+static int unit_test_send_info_to_notepad(void)
 {
 	HWND notepad_hwnd = NULL;
 
@@ -111,7 +110,21 @@ int unit_test_send_info_to_notepad(void)
 	return 0;
 }
 
+int unit_test_send_info_to_dnf(void)
+{
+	HWND dnf_hwnd = NULL;
+
+	if (osk_init() == -1)
+		return -1;
+	dnf_hwnd = FindWindow(NULL, L"地下城与勇士");
+	osk_to_target(dnf_hwnd, 'a');
+	return 0;
+}
+
+#define __OWN_MAIN__ 1
+#ifdef __OWN_MAIN__
 int main(int argc, char *argv)
 {
 	return unit_test_send_info_to_notepad();
 }
+#endif
