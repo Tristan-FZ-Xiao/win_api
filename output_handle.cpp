@@ -1,9 +1,11 @@
 #include <stdio.h>
 #include <windows.h>
+#include "debug.h"
 
 struct oskinfo {
 	HWND hwnd;
 } osk_info;
+
 POINT key_pos_info[] = {
 	{87, 152},	/* a */
 	{251, 196},	/* b */
@@ -36,9 +38,14 @@ POINT key_pos_info[] = {
 int osk_init(void)
 {
 	osk_info.hwnd = FindWindow(NULL, L"屏幕键盘");
-	osk_info.hwnd = FindWindowEx(osk_info.hwnd, NULL, NULL, NULL);
-	if (osk_info.hwnd == NULL)
+	if (osk_info.hwnd != NULL) {
+		osk_info.hwnd = FindWindowEx(osk_info.hwnd, NULL, NULL, NULL);
+	}
+
+	if (osk_info.hwnd == NULL) {
+		TRACE(T_ERROR, "OSK is not found\n");
 		return -1;
+	}
 	else
 		return 0;
 }
@@ -78,17 +85,33 @@ int osk_key_up(char key)
 	return ret;
 }
 
+int osk_to_target(HWND target, char key)
+{
+	TRACE(T_INFO, "Begin send key(%c) to target(%x)", key, target);
+	if (target) {
+		SetForegroundWindow(target);
+		osk_key_down(key);
+		osk_key_up(key);
+		return 0;
+	}
+	else {
+		TRACE(T_ERROR, "Could not find target(HWND)");
+		return -1;
+	}
+}
+
+int unit_test_send_info_to_notepad(void)
+{
+	HWND notepad_hwnd = NULL;
+
+	if (osk_init() == -1)
+		return -1;
+	notepad_hwnd = FindWindow(NULL, L"无标题 - 记事本");
+	osk_to_target(notepad_hwnd, 'a');
+	return 0;
+}
+
 int main(int argc, char *argv)
 {
-	int ret = 0;
-	LPARAM lp = 0;
-	POINT point;
-	
-	ret = osk_init();
-	if (ret == -1)
-		return -1;
-
-	osk_key_down('z');
-	osk_key_up('z');
-	return ret;
+	return unit_test_send_info_to_notepad();
 }
