@@ -42,7 +42,7 @@ void print_msg(int level, const char *level_str, const char *func, int line, cha
 	va_end(args);
 
 	if (level & msglevel)
-		fprintf(stdout, "%s", buffer);
+		fprintf(stdout, "%s\n", buffer);
 
 }
 #endif

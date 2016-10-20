@@ -5,7 +5,25 @@
 
 struct oskinfo osk_info;
 
+/* Base on the sequence of ASCII */
 static POINT key_pos_info[] = {
+	{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+	{0, 0}, {50, 102}, {0, 0}, {0, 0}, {0, 0}, {500, 147}, {0, 0}, {0, 0},
+	{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+	{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+	{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+	{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+	{418, 65},	/* 0 */
+	{90, 65},	/* 1 */
+	{126, 65},	/* 2 */
+	{164, 65},	/* 3 */
+	{202, 65},	/* 4 */
+	{238, 65},	/* 5 */
+	{274, 65},	/* 6 */
+	{310, 65},	/* 7 */
+	{346, 65},	/* 8 */
+	{382, 65},	/* 9 */
+	{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
 	{87, 152},	/* a */
 	{251, 196},	/* b */
 	{185, 191},	/* ... */
@@ -51,12 +69,15 @@ int osk_init(void)
 
 static int get_key_pos(char key, int *x, int *y)
 {
-	if (key < 'A' || key > 'z')
+	if (key > 'z')
 		return -1;
-	if (key >= 'A' && key <= 'Z')
-		key = key - 'A' + 'a';
-	*x = key_pos_info[key - 'a'].x;
-	*y = key_pos_info[key - 'a'].y;
+
+	/* Upper to lowwer */
+	if (key >= 'a' && key <= 'z')
+		key = key - 'a' + 'A';
+
+	*x = key_pos_info[key].x;
+	*y = key_pos_info[key].y;
 	return 0;
 }
 
@@ -84,13 +105,35 @@ static int osk_key_up(char key)
 	return ret;
 }
 
+int osk_send_string(HWND target, char *keys, int len)
+{
+	int i = 0;
+
+	TRACE(T_INFO, "Begin send key(%s) to target(%x)", keys, target);
+	if (target) {
+		for (i = 0; i < len; i++) {
+			/* We found that if we do not use SetCursorPos and mouse_event to set the Focus,
+			 * need SetForegroundWindow() to finish the Focus.*/
+			//SetForegroundWindow(target);
+			osk_key_down(*(keys + i));
+			osk_key_up(*(keys + i));
+		}
+		return 0;
+	}
+	else {
+		TRACE(T_ERROR, "Could not find target(HWND)");
+		return -1;
+	}
+}
+
 int osk_to_target(HWND target, char key)
 {
 	TRACE(T_INFO, "Begin send key(%c) to target(%x)", key, target);
 	if (target) {
-		SetForegroundWindow(target);
+		//SetForegroundWindow(target);
 		osk_key_down(key);
 		osk_key_up(key);
+		Sleep(10);
 		return 0;
 	}
 	else {
@@ -110,14 +153,30 @@ static int unit_test_send_info_to_notepad(void)
 	return 0;
 }
 
-int unit_test_send_info_to_dnf(void)
+int unit_test_simple_login_dnf(void)
 {
 	HWND dnf_hwnd = NULL;
+	POINT lp;
+	char *usr_id = "2648550849";
+	char *passwd = "dnf1234dnf";
 
 	if (osk_init() == -1)
 		return -1;
-	dnf_hwnd = FindWindow(NULL, L"地下城与勇士");
-	osk_to_target(dnf_hwnd, 'a');
+	lp.x = 1125;
+	lp.y = 350;
+	dnf_hwnd = FindWindow(NULL, L"地下城与勇士登录程序");
+	ClientToScreen(dnf_hwnd, &lp);
+	SetCursorPos(lp.x, lp.y);
+	mouse_event(MOUSEEVENTF_LEFTDOWN, lp.x, lp.y, 0, 0);
+	mouse_event(MOUSEEVENTF_LEFTUP, lp.x, lp.y, 0, 0);
+	osk_send_string(dnf_hwnd, usr_id, strlen(usr_id));
+	/* type TAB (ASCII = 9) */
+	Sleep(1000);
+	osk_to_target(dnf_hwnd, (char)9);
+	Sleep(1000);
+	osk_send_string(dnf_hwnd, passwd, strlen(passwd));
+	/* type Enter (ASCII = 13) */
+	osk_to_target(dnf_hwnd, (char)13);
 	return 0;
 }
 
@@ -125,6 +184,6 @@ int unit_test_send_info_to_dnf(void)
 #ifdef __OWN_MAIN__
 int main(int argc, char *argv)
 {
-	return unit_test_send_info_to_notepad();
+	return unit_test_simple_login_dnf();
 }
 #endif
