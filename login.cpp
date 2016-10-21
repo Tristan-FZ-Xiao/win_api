@@ -2,7 +2,7 @@
 #include <windows.h>
 
 #include "output_handle.h"
-#include "debug.h"
+#include "login.h"
 
 static POINT isp_pos_info[] = {
 	{328, 175},	/* Telecom */
@@ -25,30 +25,21 @@ static POINT login_account_pos[] = {
 
 static POINT region_pos;
 static POINT server_pos;
+struct auto_mob_info auto_mob = {NULL, L"地下城与勇士登录程序"};
 
-#define REGION_BASE_X	420
-#define REGION_BASE_Y	175
-#define REGION_OFFSET_X	121
-#define REGION_OFFSET_Y	50
-
-#define SERVER_BASE_X	420
-#define SERVER_BASE_Y	420
-#define SERVER_OFFSET_X	121
-#define SERVER_OFFSET_Y	50
-#define NUM_EACH_ROW	5
-
-enum {
-	ISP_NAME_TELECOM = 100,
-	ISP_NAME_UNICOM
-};
-
-struct account_info {
-	char user_name[COMMON_LEN];
-	char password[COMMON_LEN];
-	int isp;
-	int region;
-	int server;
-};
+int auto_mob_init(void)
+{
+	if (osk_init() == -1) {
+		TRACE(T_ERROR, "Could not find the OSK(on-screen-keyboard), please open it");
+		return ERR_OSK_NOT_FOUND;
+	}
+	auto_mob.hwnd = FindWindow(NULL, auto_mob.mob_name);
+	if (auto_mob.hwnd == NULL) {
+		TRACE(T_ERROR, "Could not find the auto-mob, please open it");
+		return ERR_HWND_NOT_FOUND;
+	}
+	return ERR_NO_ERR;
+}
 
 static POINT *get_isp_pos(int index)
 {
@@ -129,7 +120,7 @@ static void unit_test_isp(void)
 	if (osk_init() == -1)
 		return;
 
-	hwnd = FindWindow(NULL, L"地下城与勇士登录程序");
+	hwnd = auto_mob.hwnd;
 	for (; i < 20; i++) {
 		lp = get_isp_pos(i);
 		if (lp == NULL) {
@@ -150,7 +141,7 @@ static void unit_test_region(void)
 	if (osk_init() == -1)
 		return;
 
-	hwnd = FindWindow(NULL, L"地下城与勇士登录程序");
+	hwnd = auto_mob.hwnd;
 	for (; i < 20; i++) {
 		lp = get_region_pos(ISP_NAME_TELECOM, i);
 		if (lp == NULL) {
@@ -171,7 +162,7 @@ static void unit_test_server(void)
 	if (osk_init() == -1)
 		return;
 
-	hwnd = FindWindow(NULL, L"地下城与勇士登录程序");
+	hwnd = auto_mob.hwnd;
 	for (; i < 20; i++) {
 		lp = get_server_pos(i);
 		if (lp == NULL) {
@@ -302,25 +293,20 @@ static void unit_test_choose_region(void)
 #ifdef __OWN_MAIN__
 int main(int argc, char *argv)
 {
-	HWND hwnd = NULL;
 	int ret = 0;
-
-	if (osk_init() == -1)
+	ret = auto_mob_init();
+	if (ret != ERR_NO_ERR) {
+		TRACE(T_ERROR, "Init auto_mob failed");
 		return -1;
-
-	hwnd = FindWindow(NULL, L"地下城与勇士登录程序");
-	if (hwnd == NULL) {
-		TRACE(T_ERROR, "Get dnf hwnd error");
-		return ERR_HWND_NOT_FOUND;
 	}
+	ret = do_login(auto_mob.hwnd, ISP_NAME_TELECOM, 0, 7, "2648550849", "dnf1234dnf");
+	if (ret != ERR_NO_ERR)
+		return ret;
 #if 0
 	unit_test_isp();
 	unit_test_region();
 	unit_test_server();
 	unit_test_choose_region();
 #endif
-	ret = do_login(hwnd, ISP_NAME_TELECOM, 0, 7, "2648550849", "dnf1234dnf");
-	if (ret != ERR_NO_ERR)
-		return ret;
 }
 #endif
