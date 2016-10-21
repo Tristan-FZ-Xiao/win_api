@@ -167,7 +167,7 @@ static int unit_test_send_info_to_notepad(void)
 	return 0;
 }
 
-static int nit_test_simple_login_dnf(void)
+static int unit_test_simple_login_dnf(void)
 {
 	HWND dnf_hwnd = NULL;
 	POINT lp;
