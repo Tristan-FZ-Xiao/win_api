@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <windows.h>
+#include <time.h>
 #include "debug.h"
 #include "output_handle.h"
 
@@ -8,7 +9,7 @@ struct oskinfo osk_info;
 /* Base on the sequence of ASCII */
 static POINT key_pos_info[] = {
 	{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
-	{0, 0}, {50, 102}, {0, 0}, {0, 0}, {0, 0}, {500, 147}, {0, 0}, {0, 0},
+	{0, 0}, {50, 102}, {636, 65}, {0, 0}, {0, 0}, {500, 147}, {0, 0}, {0, 0},
 	{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
 	{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
 	{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
@@ -50,6 +51,11 @@ static POINT key_pos_info[] = {
 	{144, 193},
 	{253, 102},
 	{107, 192},	/* z */
+	{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},  /* 95 */
+	{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+	{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+	{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+	{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {548, 102}	/* DEL: 127 */
 };
 
 int osk_init(void)
@@ -67,9 +73,15 @@ int osk_init(void)
 		return 0;
 }
 
+int get_random(int n)
+{
+	srand(time(NULL));
+	return (rand()%n);
+}
+
 static int get_key_pos(char key, int *x, int *y)
 {
-	if (key > 'z')
+	if (key > 127)
 		return -1;
 
 	/* Upper to lowwer */
@@ -110,35 +122,37 @@ int osk_send_string(HWND target, char *keys, int len)
 	int i = 0;
 
 	TRACE(T_INFO, "Begin send key(%s) to target(%x)", keys, target);
-	if (target) {
-		for (i = 0; i < len; i++) {
-			/* We found that if we do not use SetCursorPos and mouse_event to set the Focus,
-			 * need SetForegroundWindow() to finish the Focus.*/
-			//SetForegroundWindow(target);
-			osk_key_down(*(keys + i));
-			osk_key_up(*(keys + i));
+	for (i = 0; i < len; i++) {
+		if (target) {
+		/* We found that if we do not use SetCursorPos and mouse_event to set the Focus,
+		 * need SetForegroundWindow() to finish the Focus.*/
+			SetForegroundWindow(target);
 		}
-		return 0;
+		osk_key_down(*(keys + i));
+		osk_key_up(*(keys + i));
 	}
-	else {
-		TRACE(T_ERROR, "Could not find target(HWND)");
-		return -1;
-	}
+	return 0;
 }
 
-int osk_to_target(HWND target, char key)
+/* If target == NULL, means uses other way to set focus on window */
+int osk_send_char(HWND target, char key)
 {
-	TRACE(T_INFO, "Begin send key(%c) to target(%x)", key, target);
+	TRACE(T_INFO, "Begin send key(%d) to target(%x)", key, target);
 	if (target) {
-		//SetForegroundWindow(target);
-		osk_key_down(key);
-		osk_key_up(key);
-		Sleep(10);
-		return 0;
+		SetForegroundWindow(target);
 	}
-	else {
-		TRACE(T_ERROR, "Could not find target(HWND)");
-		return -1;
+	osk_key_down(key);
+	osk_key_up(key);
+	return 0;
+}
+
+static void osk_send_del(HWND target, int n)
+{
+	int i = 0;
+
+	for (; i < n; i++) {
+		osk_send_char(target, (char)127);
+		Sleep(get_random(10 + get_random(10)));
 	}
 }
 
@@ -149,11 +163,11 @@ static int unit_test_send_info_to_notepad(void)
 	if (osk_init() == -1)
 		return -1;
 	notepad_hwnd = FindWindow(NULL, L"无标题 - 记事本");
-	osk_to_target(notepad_hwnd, 'a');
+	osk_send_char(notepad_hwnd, 'a');
 	return 0;
 }
 
-int unit_test_simple_login_dnf(void)
+static int nit_test_simple_login_dnf(void)
 {
 	HWND dnf_hwnd = NULL;
 	POINT lp;
@@ -162,21 +176,26 @@ int unit_test_simple_login_dnf(void)
 
 	if (osk_init() == -1)
 		return -1;
-	lp.x = 1125;
+	lp.x = 1112;
 	lp.y = 350;
 	dnf_hwnd = FindWindow(NULL, L"地下城与勇士登录程序");
 	ClientToScreen(dnf_hwnd, &lp);
 	SetCursorPos(lp.x, lp.y);
 	mouse_event(MOUSEEVENTF_LEFTDOWN, lp.x, lp.y, 0, 0);
 	mouse_event(MOUSEEVENTF_LEFTUP, lp.x, lp.y, 0, 0);
-	osk_send_string(dnf_hwnd, usr_id, strlen(usr_id));
+	/* Remove orignal user info */
+	Sleep(1000 + get_random(300));
+	osk_send_del(NULL, 20 + get_random(10));
+	Sleep(1000 + get_random(300));
+	osk_send_string(NULL, usr_id, strlen(usr_id));
 	/* type TAB (ASCII = 9) */
-	Sleep(1000);
-	osk_to_target(dnf_hwnd, (char)9);
-	Sleep(1000);
-	osk_send_string(dnf_hwnd, passwd, strlen(passwd));
+	Sleep(1000 + get_random(500));
+	osk_send_char(NULL, (char)9);
+	Sleep(1000 + get_random(500));
+	osk_send_string(NULL, passwd, strlen(passwd));
 	/* type Enter (ASCII = 13) */
-	osk_to_target(dnf_hwnd, (char)13);
+	Sleep(1000 + get_random(500));
+	osk_send_char(NULL, (char)13);
 	return 0;
 }
 
