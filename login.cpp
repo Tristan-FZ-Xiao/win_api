@@ -3,6 +3,7 @@
 
 #include "output_handle.h"
 #include "login.h"
+#include "init.h"
 
 static POINT isp_pos_info[] = {
 	{328, 175},	/* Telecom */
@@ -25,21 +26,6 @@ static POINT login_account_pos[] = {
 
 static POINT region_pos;
 static POINT server_pos;
-struct auto_mob_info auto_mob = {NULL, L"地下城与勇士登录程序"};
-
-int auto_mob_init(void)
-{
-	if (osk_init() == -1) {
-		TRACE(T_ERROR, "Could not find the OSK(on-screen-keyboard), please open it");
-		return ERR_OSK_NOT_FOUND;
-	}
-	auto_mob.hwnd = FindWindow(NULL, auto_mob.mob_name);
-	if (auto_mob.hwnd == NULL) {
-		TRACE(T_ERROR, "Could not find the auto-mob, please open it");
-		return ERR_HWND_NOT_FOUND;
-	}
-	return ERR_NO_ERR;
-}
 
 static POINT *get_isp_pos(int index)
 {

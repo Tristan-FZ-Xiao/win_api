@@ -2,11 +2,6 @@
 #define __LOGIN_H__
 #include "debug.h"
 
-struct auto_mob_info {
-	HWND hwnd;
-	wchar_t mob_name[COMMON_LEN];
-};
-
 #define REGION_BASE_X	420
 #define REGION_BASE_Y	175
 #define REGION_OFFSET_X	121
