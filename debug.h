@@ -3,6 +3,18 @@
 
 #define T_DEBUG 1
 
+#define COMMON_LEN 256
+
+enum {
+	ERR_NO_ERR = 0,
+	ERR_HWND_NOT_FOUND = -10000,
+	ERR_CHOOSE_REGION_FAILED,
+	ERR_GET_REGION_FAILED,
+	ERR_GET_SERVER_FAILED,
+	ERR_GET_LOGIN_BUTTON_FAILED,
+	ERR_INPUT_ACCOUNT_FAILED,
+};
+
 void bt_inc_msglevel(void);
 void bt_set_msglevel(int level);
 unsigned int bt_get_msglevel(void);

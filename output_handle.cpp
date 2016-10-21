@@ -117,7 +117,7 @@ static int osk_key_up(char key)
 	return ret;
 }
 
-int osk_send_string(HWND target, char *keys, int len)
+int osk_send_string(HWND target, const char *keys, int len)
 {
 	int i = 0;
 
@@ -135,7 +135,7 @@ int osk_send_string(HWND target, char *keys, int len)
 }
 
 /* If target == NULL, means uses other way to set focus on window */
-int osk_send_char(HWND target, char key)
+int osk_send_char(HWND target, const char key)
 {
 	TRACE(T_INFO, "Begin send key(%d) to target(%x)", key, target);
 	if (target) {
@@ -146,7 +146,16 @@ int osk_send_char(HWND target, char key)
 	return 0;
 }
 
-static void osk_send_del(HWND target, int n)
+/* x,y should be the abusolute position */
+int move_and_click(int x, int y)
+{
+	SetCursorPos(x, y);
+	mouse_event(MOUSEEVENTF_LEFTDOWN, x, y, 0, 0);
+	mouse_event(MOUSEEVENTF_LEFTUP, x, y, 0, 0);
+	return 0;
+}
+
+void osk_send_del(HWND target, int n)
 {
 	int i = 0;
 
@@ -199,7 +208,6 @@ static int unit_test_simple_login_dnf(void)
 	return 0;
 }
 
-#define __OWN_MAIN__ 1
 #ifdef __OWN_MAIN__
 int main(int argc, char *argv)
 {
