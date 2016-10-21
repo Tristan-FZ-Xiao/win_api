@@ -75,7 +75,7 @@ int osk_init(void)
 
 int get_random(int n)
 {
-	srand(time(NULL));
+	srand((unsigned int)time(NULL));
 	return (rand()%n);
 }
 
