@@ -313,7 +313,7 @@ static void unit_test_choose_region(void)
 	Sleep(300);
 }
 
-#define __OWN_MAIN__ 1
+//#define __OWN_MAIN__ 1
 #ifdef __OWN_MAIN__
 int main(int argc, char *argv)
 {
