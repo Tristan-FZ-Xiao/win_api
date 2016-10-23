@@ -3,7 +3,9 @@
 
 #include "debug.h"
 struct auto_mob_info {
-	HWND hwnd;
+	HWND login_hwnd;
+	HWND mob_hwnd;
+	wchar_t login_name[COMMON_LEN];
 	wchar_t mob_name[COMMON_LEN];
 };
 

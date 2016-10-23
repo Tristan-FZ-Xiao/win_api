@@ -13,7 +13,7 @@ static POINT key_pos_info[] = {
 	{0, 0}, {50, 102}, {636, 65}, {0, 0}, {0, 0}, {500, 147}, {0, 0}, {0, 0},
 	{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
 	{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
-	{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+	{237, 234}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
 	{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
 	{418, 65},	/* 0 */
 	{90, 65},	/* 1 */
@@ -56,7 +56,8 @@ static POINT key_pos_info[] = {
 	{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
 	{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
 	{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
-	{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {548, 102}	/* DEL: 127 */
+	{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {548, 102},	/* DEL: 127 */
+	{468, 196}, {468, 232}, {440, 232}, {510, 232}	/* UP: 128, DOWN: 129, LEFT: 130, RIGHT: 131 */
 };
 
 int osk_init(void)
@@ -80,11 +81,8 @@ int get_random(int n)
 	return (rand()%n);
 }
 
-static int get_key_pos(char key, int *x, int *y)
+static int get_key_pos(unsigned char key, int *x, int *y)
 {
-	if (key > 127)
-		return -1;
-
 	/* Upper to lowwer */
 	if (key >= 'a' && key <= 'z')
 		key = key - 'a' + 'A';
@@ -94,7 +92,7 @@ static int get_key_pos(char key, int *x, int *y)
 	return 0;
 }
 
-static int osk_key_down(char key)
+static int osk_key_down(unsigned char key)
 {
 	int x, y;
 	int ret = 0;
@@ -102,11 +100,12 @@ static int osk_key_down(char key)
 
 	get_key_pos(key, &x, &y);
 	lp = (LPARAM) (x + (y << 16));
+	TRACE(T_INFO, "X: %d, Y: %d", x, y);
 	ret = PostMessage(osk_info.hwnd, WM_LBUTTONDOWN , 0, lp);
 	return ret;
 }
 
-static int osk_key_up(char key)
+static int osk_key_up(unsigned char key)
 {
 	int x, y;
 	int ret = 0;
@@ -136,13 +135,14 @@ int osk_send_string(HWND target, const char *keys, int len)
 }
 
 /* If target == NULL, means uses other way to set focus on window */
-int osk_send_char(HWND target, const char key)
+int osk_send_char(HWND target, const unsigned char key)
 {
 	TRACE(T_INFO, "Begin send key(%d) to target(%x)", key, target);
 	if (target) {
 		SetForegroundWindow(target);
 	}
 	osk_key_down(key);
+	Sleep(100 + get_random(100));
 	osk_key_up(key);
 	return 0;
 }
@@ -152,7 +152,17 @@ int move_and_click(int x, int y)
 {
 	SetCursorPos(x, y);
 	mouse_event(MOUSEEVENTF_LEFTDOWN, x, y, 0, 0);
+	Sleep(100 + get_random(100));
 	mouse_event(MOUSEEVENTF_LEFTUP, x, y, 0, 0);
+	return 0;
+}
+
+int move_and_rclick(int x, int y)
+{
+	SetCursorPos(x, y);
+	mouse_event(MOUSEEVENTF_RIGHTDOWN, x, y, 0, 0);
+	Sleep(10);
+	mouse_event(MOUSEEVENTF_RIGHTUP, x, y, 0, 0);
 	return 0;
 }
 

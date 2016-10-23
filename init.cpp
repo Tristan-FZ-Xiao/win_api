@@ -3,7 +3,7 @@
 #include "init.h"
 #include "output_handle.h"
 
-struct auto_mob_info auto_mob = {NULL, L"地下城与勇士登录程序"};
+struct auto_mob_info auto_mob = {NULL, NULL, L"地下城与勇士登录程序", L"地下城与勇士"};
 
 int auto_mob_init(void)
 {
@@ -11,10 +11,12 @@ int auto_mob_init(void)
 		TRACE(T_ERROR, "Could not find the OSK(on-screen-keyboard), please open it");
 		return ERR_OSK_NOT_FOUND;
 	}
-	auto_mob.hwnd = FindWindow(NULL, auto_mob.mob_name);
-	if (auto_mob.hwnd == NULL) {
+
+	auto_mob.login_hwnd = FindWindow(NULL, auto_mob.login_name);
+	if (auto_mob.login_hwnd == NULL) {
 		TRACE(T_ERROR, "Could not find the auto-mob, please open it");
 		return ERR_HWND_NOT_FOUND;
 	}
+
 	return ERR_NO_ERR;
 }
