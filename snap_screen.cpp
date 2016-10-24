@@ -19,16 +19,41 @@ struct t_bmp {
 	BITMAPINFOHEADER bih;
 };
 
-int binary_process(struct t_bmp *ptr)
-{
-	int i = 0;
+struct tag_rgba {
+	unsigned char b;
+	unsigned char g;
+	unsigned char r;
+	unsigned char reservered;
+};
 
-	if (ptr == NULL) {
+enum {
+	BINARY_WEIGHTED_MEAN = 1,
+	BINARY_MEAN
+};
+
+/* convert picture from color to gray */
+int binary_process(char *src, unsigned int len, int mode)
+{
+	unsigned int i = 0;
+	char *ptr = NULL;
+	unsigned char new_color;	
+
+	if (src == NULL) {
 		return ERR_COMMON_NULL_ERROR;
 	}
-
-	for (; i < ptr->len; i++) {
-		;
+	TRACE(T_INFO, "Do the binary process");	
+	for (ptr = src; i < len; i += 3) {
+		if (mode == BINARY_MEAN) {
+			new_color = (unsigned char)((float)(ptr[i + 0] + ptr[i + 1] + ptr[i + 2]) / 3.0f);
+			//TRACE(T_INFO, "ptr[%d]'s new color %d", i, new_color);	
+		}
+		else if (mode == BINARY_WEIGHTED_MEAN) {
+			new_color = (unsigned char)((float)ptr[i + 0] * 0.114f + (float)ptr[i + 1] * 0.587f 
+				+ (float)ptr[i + 2] * 0.299f);
+		}
+		ptr[i + 0] = new_color;
+		ptr[i + 1] = new_color;
+		ptr[i + 2] = new_color;
 	}
 	return ERR_NO_ERR;
 }
@@ -38,9 +63,13 @@ int get_screen(HWND hwnd, const wchar_t *path, struct t_bmp *out_ptr)
 	HWND desk_hwnd=::GetDesktopWindow();
 	RECT target_rc;
 	POINT lp = {0, 0};
+	int ret = 0;
 
 	::GetClientRect(hwnd,&target_rc);
 	ClientToScreen(hwnd, &lp);
+	if (lp.x < 0 || lp.y < 0) {
+		return ERR_WINDOW_NOT_FOUND;
+	}
 	target_rc.left += lp.x;
 	target_rc.right += lp.x;
 	target_rc.top += lp.y;
@@ -59,6 +88,7 @@ int get_screen(HWND hwnd, const wchar_t *path, struct t_bmp *out_ptr)
 	char *bm_data;
 
 	GetObject(desk_bmp, sizeof(BITMAP), &bmInfo);
+
 	bm_dataSize = bmInfo.bmWidthBytes * bmInfo.bmHeight;
 	bm_data = new char[bm_dataSize];
 
@@ -80,13 +110,18 @@ int get_screen(HWND hwnd, const wchar_t *path, struct t_bmp *out_ptr)
 	out_ptr->bih.biClrUsed			= 0;
 	out_ptr->bih.biClrImportant		= 0;
 
-	TRACE(T_INFO, "file size %d width %d height %d \n", out_ptr->bfh.bfSize,
-		out_ptr->bih.biWidth, out_ptr->bih.biHeight);
+	TRACE(T_INFO, "file size %d width %d height %d bmWidthByte %d bmHeight %d\n", out_ptr->bfh.bfSize,
+		out_ptr->bih.biWidth, out_ptr->bih.biHeight, bmInfo.bmWidthBytes, bmInfo.bmHeight);
 
-	::GetDIBits(desk_dc, desk_bmp, 0, bmInfo.bmHeight, bm_data, (BITMAPINFO *)&out_ptr->bih, DIB_RGB_COLORS);
+	::GetDIBits(desk_dc, desk_bmp, 0, bmInfo.bmHeight, bm_data, (BITMAPINFO *)&out_ptr->bih,
+		DIB_RGB_COLORS);
 
 	out_ptr->len = bm_dataSize;
 	out_ptr->data = bm_data;
+	ret = binary_process(bm_data, bm_dataSize, BINARY_WEIGHTED_MEAN);
+	if (ret != ERR_NO_ERR) {
+		TRACE(T_ERROR, "binary process failed");
+	}
 
 	if (path) {
 		DWORD dwSize;
@@ -106,11 +141,21 @@ int get_screen(HWND hwnd, const wchar_t *path, struct t_bmp *out_ptr)
 int main()
 {
 	int ret = 0;
-	//auto_mob_init();
 	struct t_bmp target = {};
-	HWND hwnd = FindWindow(NULL, L"无标题 - 记事本");
-	ret = get_screen(hwnd, L"D://1.bmp", &target);
+
+	ret = auto_mob_init();
+#if 0
+	//HWND hwnd = FindWindow(NULL, L"无标题 - 记事本");
+	if (hwnd == NULL) {
+		return ERR_HWND_NOT_FOUND;
+	}
+#else
+	auto_mob.mob_hwnd = FindWindow(NULL, auto_mob.mob_name);
+#endif
+	ret = get_screen(auto_mob.mob_hwnd, L"D://1.bmp", &target);
+	if (ret != ERR_NO_ERR)
+		return ret;
 	delete(target.data);
-	return 0;
+	return ERR_NO_ERR;
 }
 #endif /* __OWN_MAIN__ */
