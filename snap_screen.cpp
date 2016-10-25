@@ -32,7 +32,7 @@ enum {
 };
 
 /* convert picture from color to gray */
-int binary_process(char *src, unsigned int len, int mode)
+int convert_gray(char *src, unsigned int len, int mode)
 {
 	unsigned int i = 0;
 	char *ptr = NULL;
@@ -118,7 +118,7 @@ int get_screen(HWND hwnd, const wchar_t *path, struct t_bmp *out_ptr)
 
 	out_ptr->len = bm_dataSize;
 	out_ptr->data = bm_data;
-	ret = binary_process(bm_data, bm_dataSize, BINARY_WEIGHTED_MEAN);
+	ret = convert_gray(bm_data, bm_dataSize, BINARY_WEIGHTED_MEAN);
 	if (ret != ERR_NO_ERR) {
 		TRACE(T_ERROR, "binary process failed");
 	}
@@ -135,10 +135,142 @@ int get_screen(HWND hwnd, const wchar_t *path, struct t_bmp *out_ptr)
 	return ERR_NO_ERR;
 }
 
-#define __OWN_MAIN__ 1
-#ifdef __OWN_MAIN__
+int get_screen_rect(struct t_bmp *in_ptr, RECT target_rc, struct t_bmp *out_ptr)
+{
+	int i = 0;
+	int rc_width = target_rc.right - target_rc.left;
+	if (rc_width < 0 || out_ptr == NULL || in_ptr == NULL) {
+		return ERR_COMMON_PARAM_ERR;
+	}
+	rc_width = (rc_width % 4 == 0) ? (rc_width / 4) * 4 : ((rc_width / 4) + 1) * 4;
+	int len = (target_rc.bottom - target_rc.top) * rc_width * 3;
 
-int main()
+	char *t_buf = new char[len];
+
+	/* As pixel - buffer mapping from the left-bottom, do the transfer. */
+	for (; i < (target_rc.bottom - target_rc.top); i ++) {
+		memcpy(t_buf + rc_width * i * 3, in_ptr->data + ((in_ptr->bih.biHeight - target_rc.bottom + i) * 
+			in_ptr->bih.biWidth + target_rc.left) * 3, rc_width * 3);
+	}
+	memcpy(&out_ptr->bfh, &in_ptr->bfh, sizeof(BITMAPFILEHEADER));
+	memcpy(&out_ptr->bih, &in_ptr->bih, sizeof(BITMAPINFOHEADER));
+
+	out_ptr->bfh.bfType			= 0x4d42;
+	out_ptr->bfh.bfSize			= len + 54;
+	out_ptr->bfh.bfReserved1		= 0;
+	out_ptr->bfh.bfReserved2		= 0;
+	out_ptr->bfh.bfOffBits			= 54;
+
+	out_ptr->bih.biSize			= 40;
+	out_ptr->bih.biWidth			= rc_width;
+	out_ptr->bih.biHeight			= target_rc.bottom - target_rc.top;
+	out_ptr->bih.biPlanes			= 1;
+	out_ptr->bih.biBitCount			= 24;
+	out_ptr->bih.biCompression		= BI_RGB;
+	out_ptr->bih.biSizeImage		= len;
+	out_ptr->bih.biXPelsPerMeter		= 0;
+	out_ptr->bih.biYPelsPerMeter		= 0;
+	out_ptr->bih.biClrUsed			= 0;
+	out_ptr->bih.biClrImportant		= 0;
+
+	out_ptr->data = t_buf;
+	out_ptr->len = len;
+
+	return ERR_NO_ERR;
+}
+
+int load_picture(wchar_t *path, struct t_bmp *out_ptr)
+{
+	unsigned int file_len = 0;
+	unsigned long read_len = 0;
+	int ret = 0;
+
+	if (!path || !out_ptr) {
+		return ERR_COMMON_PARAM_ERR;
+	}
+
+	HANDLE h_file=CreateFile(path, GENERIC_READ, 0, NULL, OPEN_EXISTING,
+					FILE_ATTRIBUTE_NORMAL, 0);
+
+	if (h_file == NULL) {
+		return ERR_FILE_NOT_FOUND;
+	}
+
+	file_len = GetFileSize(h_file, NULL);
+	if (file_len == INVALID_FILE_SIZE) {
+		return ERR_GET_FILE_SIZE_FAILED;
+	}
+
+	if (file_len < 54) {
+		return ERR_GET_FILE_SIZE_FAILED;
+	}
+
+	out_ptr->len = file_len - 54;
+	out_ptr->data = new char[out_ptr->len];
+	ret = ReadFile(h_file, &out_ptr->bfh, sizeof(BITMAPFILEHEADER), (LPDWORD)&read_len, NULL);
+	ret = ReadFile(h_file, &out_ptr->bih, sizeof(BITMAPINFOHEADER), (LPDWORD)&read_len, NULL);
+	ret = ReadFile(h_file, out_ptr->data, out_ptr->len, (LPDWORD)&read_len, NULL);
+	::CloseHandle(h_file);
+	if (ret == TRUE) {
+		return ERR_NO_ERR;
+	}
+	else {
+		TRACE(T_ERROR, "Read File %s error, errno: %d", path, GetLastError());
+		return ERR_READ_FILE_FAILED;
+	}
+}
+
+int save_picture(wchar_t *path, struct t_bmp *in_ptr)
+{
+	if (path && in_ptr) {
+		DWORD dwSize;
+		HANDLE hFile=CreateFile(path, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS,
+		FILE_ATTRIBUTE_NORMAL, 0);
+		WriteFile(hFile, (void *)&in_ptr->bfh, sizeof(BITMAPFILEHEADER), &dwSize, 0);
+		WriteFile(hFile, (void *)&in_ptr->bih, sizeof(BITMAPINFOHEADER), &dwSize, 0);
+		WriteFile(hFile, (void *)in_ptr->data, in_ptr->len, &dwSize, 0);
+		::CloseHandle(hFile);
+	}
+	return ERR_NO_ERR;
+}
+
+void unit_test_picture(void)
+{
+	struct t_bmp tmp = {};
+
+	load_picture(L"D://1.bmp", &tmp);
+	save_picture(L"D://1.1.bmp", &tmp);
+}
+
+void unit_test_get_screen_rect(void)
+{
+	struct t_bmp input = {};
+	struct t_bmp output = {};
+	int ret = 0;
+	RECT target_rc = {};
+
+	/* This should be the rect of role's level: likes Lv 14 */
+	target_rc.left = 24;
+	target_rc.right = 70;
+	target_rc.top = 588;
+	target_rc.bottom = 599;
+
+	ret = load_picture(L"D://1.bmp", &input);
+	if (ret != ERR_NO_ERR) {
+		return;
+	}
+
+	ret = get_screen_rect(&input, target_rc, &output);
+	if (ret != ERR_NO_ERR) {
+		delete[] input.data;
+		return;
+	}
+	delete[] input.data;
+	ret = save_picture(L"D://1.2.bmp", &output);
+	delete[] output.data;
+}
+
+int unit_test_get_screen(void)
 {
 	int ret = 0;
 	struct t_bmp target = {};
@@ -155,7 +287,19 @@ int main()
 	ret = get_screen(auto_mob.mob_hwnd, L"D://1.bmp", &target);
 	if (ret != ERR_NO_ERR)
 		return ret;
-	delete(target.data);
+	delete[] target.data;
 	return ERR_NO_ERR;
+
+}
+
+#define __OWN_MAIN__ 1
+#ifdef __OWN_MAIN__
+
+int main()
+{
+	while (1) {
+		unit_test_get_screen_rect();
+		Sleep(500);
+	}
 }
 #endif /* __OWN_MAIN__ */
