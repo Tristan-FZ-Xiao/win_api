@@ -7,10 +7,9 @@
 #include "snap_screen.h"
 
 /*	What we need in the module:
- *	1. Get picture from desk screen snap, store it in the memory.
- *	2. Do some BMP transfer: 1) color to black-white; 2) color to gray;
- *	3. Prepare for Opencv;
- *	4. Do some basic recognition likes: 1) Number; 2) small icon;
+ *	(DONE) 1. Get picture from desk screen snap, store it in the memory.
+ *	(DONE) 2. Do some BMP transfer: 1) color to black-white; 2) color to gray;
+ *	(TODO) 3. Prepare for Opencv;
  */
 
 static unsigned char get_gray(unsigned char *ptr, int mode)
@@ -54,6 +53,12 @@ unsigned char get_average_color(unsigned char *gray, int x, int y, int w, int h)
 		return (unsigned char) (rs / 9);
 }
 
+static unsigned char get_color(unsigned char *gray, int x, int y, int w, int h)
+{
+	TRACE(T_INFO, "value %d", *(gray + (y * w + x) * 3));
+	return *(gray + (y * w + x) * 3);
+}
+
 /* convert picture from color to gray */
 int convert_gray(struct t_bmp *in_ptr, int mode)
 {
@@ -75,22 +80,48 @@ int convert_gray(struct t_bmp *in_ptr, int mode)
 	return ERR_NO_ERR;
 }
 
-int convert2blackwhite(struct t_bmp *in_ptr)
+enum {
+	ONLY_BLACK = 1,
+	ONLY_WHITE,
+	BOTH_BLACKWHITE,
+};
+
+int convert2blackwhite(struct t_bmp *in_ptr, int mode)
 {
 	int h = in_ptr->bih.biHeight;
 	int w = in_ptr->bih.biWidth;
 	int i, j; 
 	int SW = 160;
 	unsigned char *ptr = new unsigned char[in_ptr->len];
+	int flag = 0;
 
 	for (i = 0; i < h; i ++) {
 		for (j = 0; j < w; j ++) {
-			if (get_average_color(in_ptr->data, j, i, w, h) > SW) {
+			if (mode == ONLY_BLACK ||
+				mode == ONLY_WHITE) {
+				if (get_color(in_ptr->data, j, i, w, h) > SW) {
+					flag = 1;			
+				}
+				else {
+					flag = 0;
+				}
+			}
+			else {
+				if (get_average_color(in_ptr->data, j, i, w, h) > SW) {
+					flag = 1;
+				}
+				else {
+					flag = 0;
+				}
+			}
+			if (flag == 1) {
+				TRACE(T_INFO, "x %d y %d WHITE", j, i);
 				*(ptr + ((i * w + j) * 3)) = 255;
 				*(ptr + ((i * w + j) * 3 + 1)) = 255;
 				*(ptr + ((i * w + j) * 3 + 2)) = 255;
 			}
 			else {
+				TRACE(T_INFO, "x %d y %d BLACK", j, i);
 				*(ptr + ((i * w + j) * 3)) = 0;
 				*(ptr + ((i * w + j) * 3 + 1)) = 0;
 				*(ptr + ((i * w + j) * 3 + 2)) = 0;
@@ -277,8 +308,8 @@ int get_screen(HWND hwnd, wchar_t *path, struct t_bmp *out_ptr)
 	out_ptr->data = bm_data;
 
 	/* do the convertion */
-	ret = convert_gray(out_ptr, BINARY_MEAN);
-	ret = convert2blackwhite(out_ptr);
+	//ret = convert_gray(out_ptr, BINARY_MEAN);
+	//ret = convert2blackwhite(out_ptr, BOTH_BLACKWHITE);
 
 	if (ret != ERR_NO_ERR) {
 		TRACE(T_ERROR, "binary process failed");
@@ -347,7 +378,7 @@ void unit_test_get_screen_rect(void)
 	delete[] input.data;
 
 	ret = convert_gray(&output, BINARY_WEIGHTED_MEAN);
-	ret = convert2blackwhite(&output);
+	ret = convert2blackwhite(&output, BOTH_BLACKWHITE);
 
 	ret = save_picture(L"D://1.2.bmp", &output);
 	delete[] output.data;
@@ -384,12 +415,57 @@ int unit_test_get_screen(void)
 
 }
 
+void unit_test_get_info_from_dnf(void)
+{
+	int ret = 0;
+	struct t_bmp input = {};
+	struct t_bmp output = {};
+	RECT target_rc = {};
+
+	ret = auto_mob_init();
+	auto_mob.mob_hwnd = FindWindow(NULL, auto_mob.mob_name);
+	ret = get_screen(auto_mob.mob_hwnd, L"D://game.bmp", &input);
+
+	/* This should be the rect of role's level: likes Lv 14 */
+	target_rc.left	= 45;
+	target_rc.right	= 70;
+	target_rc.top	= 588;
+	target_rc.bottom	= 599;
+
+	ret = get_screen_rect(&input, target_rc, &output);
+	if (ret != ERR_NO_ERR) {
+		delete[] input.data;
+		return;
+	}
+	ret = convert_gray(&output, BINARY_WEIGHTED_MEAN);
+	ret = convert2blackwhite(&output, ONLY_BLACK);
+	ret = save_picture(L"D://role_level.bmp", &output);
+
+	/* This should be the rect of gold */
+	target_rc.left	= 624;
+	target_rc.right	= 688;
+	target_rc.top	= 532;
+	target_rc.bottom	= 546;
+
+	ret = get_screen_rect(&input, target_rc, &output);
+	if (ret != ERR_NO_ERR) {
+		delete[] input.data;
+		return;
+	}
+	ret = convert_gray(&output, BINARY_WEIGHTED_MEAN);
+	ret = convert2blackwhite(&output, ONLY_BLACK);
+	ret = save_picture(L"D://gold.bmp", &output);
+
+	delete[] output.data;
+	delete[] input.data;
+}
+
 #define __OWN_MAIN__ 1
 #ifdef __OWN_MAIN__
 
 int main()
 {
-	unit_test_get_screen_rect();
+	unit_test_get_info_from_dnf();
 	//unit_test_get_screen();
 }
 #endif /* __OWN_MAIN__ */
