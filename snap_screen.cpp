@@ -13,7 +13,7 @@
  */
 
 struct t_bmp {
-	char *data;
+	unsigned char *data;
 	unsigned int len;
 	BITMAPFILEHEADER bfh;
 	BITMAPINFOHEADER bih;
@@ -31,26 +31,61 @@ enum {
 	BINARY_MEAN
 };
 
+static unsigned char get_gray(unsigned char *ptr, int mode)
+{
+	unsigned char new_color;
+
+	if (mode == BINARY_MEAN) {
+		new_color = (unsigned char)((float)(ptr[0] + ptr[1] + ptr[2]) / 3.0f);
+		//TRACE(T_INFO, "ptr[%d]'s new color %d", i, new_color);	
+	}
+	else if (mode == BINARY_WEIGHTED_MEAN) {
+		new_color = (unsigned char)((float)ptr[0] * 0.114f + (float)ptr[1] * 0.587f 
+			+ (float)ptr[2] * 0.299f);
+	}
+	return new_color;
+}
+
+/* Get the average gray value: get value from all around 9.
+ *	x1 x2 x3
+ *	x4 T  x5
+ *	x6 x7 x8
+ */
+static unsigned char get_average_color(unsigned char *gray, int x, int y, int w, int h)
+{
+	int rs = 0;
+	/* If it's black or white, just return the original value */
+	if (*(gray + (y * w + x) * 3) == 255 || *(gray + (y * w + x) * 3) == 0) {
+		return *(gray + (y * w + x) * 3);
+	}
+
+	rs = *(gray + (y * w + x) * 3)									// T
+		+ (x == 0 || y == 0 ? 255 : *(gray + ((y - 1) * w + x - 1) * 3))			// x1
+		+ (y == 0 ? 255 : *(gray + ((y - 1) * w + x) * 3))					// x2
+		+ (x == w - 1 || y == 0 ? 255 : *(gray + ((y - 1) * w + x + 1) * 3))		// x3
+		+ (x == 0 ? 255 : *(gray + (y * w + x - 1) * 3))					// x4
+		+ (x == w - 1 ? 255 : *(gray + (y * w + x + 1) * 3))					// x5
+		+ (x == 0 || y == h - 1 ? 255 : *(gray + ((y + 1) * w + x - 1) * 3))		// x6
+		+ (y == h - 1 ? 255 : *(gray + ((y + 1) * w + x) * 3))				// x7
+		+ (x == w - 1 || y == h - 1 ? 255 : *(gray + ((y + 1) * w + x + 1) * 3));	// x8
+
+		return (unsigned char) (rs / 9);
+}
+
 /* convert picture from color to gray */
-int convert_gray(char *src, unsigned int len, int mode)
+int convert_gray(struct t_bmp *in_ptr, int mode)
 {
 	unsigned int i = 0;
-	char *ptr = NULL;
+	unsigned char *ptr = NULL;
 	unsigned char new_color;	
 
-	if (src == NULL) {
+	if (in_ptr == NULL) {
+		TRACE(T_ERROR, "in_ptr == NULL");	
 		return ERR_COMMON_NULL_ERROR;
 	}
-	TRACE(T_INFO, "Do the binary process");	
-	for (ptr = src; i < len; i += 3) {
-		if (mode == BINARY_MEAN) {
-			new_color = (unsigned char)((float)(ptr[i + 0] + ptr[i + 1] + ptr[i + 2]) / 3.0f);
-			//TRACE(T_INFO, "ptr[%d]'s new color %d", i, new_color);	
-		}
-		else if (mode == BINARY_WEIGHTED_MEAN) {
-			new_color = (unsigned char)((float)ptr[i + 0] * 0.114f + (float)ptr[i + 1] * 0.587f 
-				+ (float)ptr[i + 2] * 0.299f);
-		}
+	TRACE(T_INFO, "Do the gray convert process");	
+	for (ptr = in_ptr->data; i < in_ptr->len; i += 3) {
+		new_color = get_gray((ptr + i), mode);
 		ptr[i + 0] = new_color;
 		ptr[i + 1] = new_color;
 		ptr[i + 2] = new_color;
@@ -58,94 +93,45 @@ int convert_gray(char *src, unsigned int len, int mode)
 	return ERR_NO_ERR;
 }
 
-int get_screen(HWND hwnd, const wchar_t *path, struct t_bmp *out_ptr)
+int convert2blackwhite(struct t_bmp *in_ptr)
 {
-	HWND desk_hwnd=::GetDesktopWindow();
-	RECT target_rc;
-	POINT lp = {0, 0};
-	int ret = 0;
+	int h = in_ptr->bih.biHeight;
+	int w = in_ptr->bih.biWidth;
+	int i, j; 
+	int SW = 160;
+	unsigned char *ptr = new unsigned char[in_ptr->len];
 
-	::GetClientRect(hwnd,&target_rc);
-	ClientToScreen(hwnd, &lp);
-	if (lp.x < 0 || lp.y < 0) {
-		return ERR_WINDOW_NOT_FOUND;
+	for (i = 0; i < h; i ++) {
+		for (j = 0; j < w; j ++) {
+			if (get_average_color(in_ptr->data, j, i, w, h) > SW) {
+				*(ptr + ((i * w + j) * 3)) = 255;
+				*(ptr + ((i * w + j) * 3 + 1)) = 255;
+				*(ptr + ((i * w + j) * 3 + 2)) = 255;
+			}
+			else {
+				*(ptr + ((i * w + j) * 3)) = 0;
+				*(ptr + ((i * w + j) * 3 + 1)) = 0;
+				*(ptr + ((i * w + j) * 3 + 2)) = 0;
+			}
+		}
 	}
-	target_rc.left += lp.x;
-	target_rc.right += lp.x;
-	target_rc.top += lp.y;
-	target_rc.bottom += lp.y;
-
-	HDC desk_dc=GetDC(desk_hwnd);
-	HBITMAP desk_bmp=::CreateCompatibleBitmap(desk_dc, target_rc.right - target_rc.left,
-		target_rc.bottom - target_rc.top);
-	HDC mem_dc=::CreateCompatibleDC(desk_dc);
-	SelectObject(mem_dc,desk_bmp);
-	BitBlt(mem_dc, 0, 0, target_rc.right - target_rc.left, target_rc.bottom - target_rc.top,
-		desk_dc, target_rc.left, target_rc.top, SRCCOPY);
-
-	BITMAP bmInfo;
-	DWORD bm_dataSize;
-	char *bm_data;
-
-	GetObject(desk_bmp, sizeof(BITMAP), &bmInfo);
-
-	bm_dataSize = bmInfo.bmWidthBytes * bmInfo.bmHeight;
-	bm_data = new char[bm_dataSize];
-
-	out_ptr->bfh.bfType			= 0x4d42;
-	out_ptr->bfh.bfSize			= bm_dataSize + 54;
-	out_ptr->bfh.bfReserved1		= 0;
-	out_ptr->bfh.bfReserved2		= 0;
-	out_ptr->bfh.bfOffBits			= 54;
-
-	out_ptr->bih.biSize			= 40;
-	out_ptr->bih.biWidth			= bmInfo.bmWidth;
-	out_ptr->bih.biHeight			= bmInfo.bmHeight;
-	out_ptr->bih.biPlanes			= 1;
-	out_ptr->bih.biBitCount			= 24;
-	out_ptr->bih.biCompression		= BI_RGB;
-	out_ptr->bih.biSizeImage		= bm_dataSize;
-	out_ptr->bih.biXPelsPerMeter		= 0;
-	out_ptr->bih.biYPelsPerMeter		= 0;
-	out_ptr->bih.biClrUsed			= 0;
-	out_ptr->bih.biClrImportant		= 0;
-
-	TRACE(T_INFO, "file size %d width %d height %d bmWidthByte %d bmHeight %d\n", out_ptr->bfh.bfSize,
-		out_ptr->bih.biWidth, out_ptr->bih.biHeight, bmInfo.bmWidthBytes, bmInfo.bmHeight);
-
-	::GetDIBits(desk_dc, desk_bmp, 0, bmInfo.bmHeight, bm_data, (BITMAPINFO *)&out_ptr->bih,
-		DIB_RGB_COLORS);
-
-	out_ptr->len = bm_dataSize;
-	out_ptr->data = bm_data;
-	ret = convert_gray(bm_data, bm_dataSize, BINARY_WEIGHTED_MEAN);
-	if (ret != ERR_NO_ERR) {
-		TRACE(T_ERROR, "binary process failed");
-	}
-
-	if (path) {
-		DWORD dwSize;
-		HANDLE hFile=CreateFile(path, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS,
-		FILE_ATTRIBUTE_NORMAL, 0);
-		WriteFile(hFile, (void *)&out_ptr->bfh, sizeof(BITMAPFILEHEADER), &dwSize, 0);
-		WriteFile(hFile, (void *)&out_ptr->bih, sizeof(BITMAPINFOHEADER), &dwSize, 0);
-		WriteFile(hFile, (void *)bm_data, out_ptr->len, &dwSize, 0);
-		::CloseHandle(hFile);
-	}
+	delete(in_ptr->data);
+	in_ptr->data = ptr;
 	return ERR_NO_ERR;
 }
 
-int get_screen_rect(struct t_bmp *in_ptr, RECT target_rc, struct t_bmp *out_ptr)
+static int __get_screen_rect(struct t_bmp *in_ptr, RECT target_rc, struct t_bmp *out_ptr)
 {
 	int i = 0;
-	int rc_width = target_rc.right - target_rc.left;
-	if (rc_width < 0 || out_ptr == NULL || in_ptr == NULL) {
-		return ERR_COMMON_PARAM_ERR;
-	}
-	rc_width = (rc_width % 4 == 0) ? (rc_width / 4) * 4 : ((rc_width / 4) + 1) * 4;
-	int len = (target_rc.bottom - target_rc.top) * rc_width * 3;
+	int rc_width = 0;
+	int len = 0;
+	unsigned char *t_buf =  NULL;
 
-	char *t_buf = new char[len];
+	rc_width = target_rc.right - target_rc.left;
+	/* align 4 Byte */ 
+	rc_width = (rc_width % 4 == 0) ? (rc_width / 4) * 4 : ((rc_width / 4) + 1) * 4;
+	len = (target_rc.bottom - target_rc.top) * rc_width * 3;
+	t_buf = new unsigned char[len];
 
 	/* As pixel - buffer mapping from the left-bottom, do the transfer. */
 	for (; i < (target_rc.bottom - target_rc.top); i ++) {
@@ -179,6 +165,19 @@ int get_screen_rect(struct t_bmp *in_ptr, RECT target_rc, struct t_bmp *out_ptr)
 	return ERR_NO_ERR;
 }
 
+int get_screen_rect(struct t_bmp *in_ptr, RECT target_rc, struct t_bmp *out_ptr)
+{
+	if (out_ptr == NULL || in_ptr == NULL) {
+		return ERR_COMMON_PARAM_ERR;
+	}
+	if (target_rc.bottom < 0 || target_rc.left < 0 || target_rc.right < 0 || target_rc.top < 0
+		|| target_rc.right < target_rc.left || target_rc.bottom < target_rc.top
+		|| target_rc.right > in_ptr->bih.biWidth || target_rc.bottom > in_ptr->bih.biHeight) {
+		return ERR_COMMON_PARAM_ERR;
+	}
+	return __get_screen_rect(in_ptr, target_rc, out_ptr);
+}
+
 int load_picture(wchar_t *path, struct t_bmp *out_ptr)
 {
 	unsigned int file_len = 0;
@@ -206,7 +205,7 @@ int load_picture(wchar_t *path, struct t_bmp *out_ptr)
 	}
 
 	out_ptr->len = file_len - 54;
-	out_ptr->data = new char[out_ptr->len];
+	out_ptr->data = new unsigned char[out_ptr->len];
 	ret = ReadFile(h_file, &out_ptr->bfh, sizeof(BITMAPFILEHEADER), (LPDWORD)&read_len, NULL);
 	ret = ReadFile(h_file, &out_ptr->bih, sizeof(BITMAPINFOHEADER), (LPDWORD)&read_len, NULL);
 	ret = ReadFile(h_file, out_ptr->data, out_ptr->len, (LPDWORD)&read_len, NULL);
@@ -234,6 +233,84 @@ int save_picture(wchar_t *path, struct t_bmp *in_ptr)
 	return ERR_NO_ERR;
 }
 
+int get_screen(HWND hwnd, wchar_t *path, struct t_bmp *out_ptr)
+{
+	HWND desk_hwnd=::GetDesktopWindow();
+	RECT target_rc;
+	POINT lp = {0, 0};
+	int ret = 0;
+
+	::GetClientRect(hwnd,&target_rc);
+	ClientToScreen(hwnd, &lp);
+	if (lp.x < 0 || lp.y < 0) {
+		return ERR_WINDOW_NOT_FOUND;
+	}
+	target_rc.left += lp.x;
+	target_rc.right += lp.x;
+	target_rc.top += lp.y;
+	target_rc.bottom += lp.y;
+
+	HDC desk_dc=GetDC(desk_hwnd);
+	HBITMAP desk_bmp=::CreateCompatibleBitmap(desk_dc, target_rc.right - target_rc.left,
+		target_rc.bottom - target_rc.top);
+	HDC mem_dc=::CreateCompatibleDC(desk_dc);
+	SelectObject(mem_dc,desk_bmp);
+	BitBlt(mem_dc, 0, 0, target_rc.right - target_rc.left, target_rc.bottom - target_rc.top,
+		desk_dc, target_rc.left, target_rc.top, SRCCOPY);
+
+	BITMAP bmInfo;
+	DWORD bm_dataSize;
+	unsigned char *bm_data;
+
+	GetObject(desk_bmp, sizeof(BITMAP), &bmInfo);
+
+	bm_dataSize = bmInfo.bmWidthBytes * bmInfo.bmHeight;
+	bm_data = new unsigned char[bm_dataSize];
+
+	out_ptr->bfh.bfType			= 0x4d42;
+	out_ptr->bfh.bfSize			= bm_dataSize + 54;
+	out_ptr->bfh.bfReserved1		= 0;
+	out_ptr->bfh.bfReserved2		= 0;
+	out_ptr->bfh.bfOffBits			= 54;
+
+	out_ptr->bih.biSize			= 40;
+	out_ptr->bih.biWidth			= bmInfo.bmWidth;
+	out_ptr->bih.biHeight			= bmInfo.bmHeight;
+	out_ptr->bih.biPlanes			= 1;
+	out_ptr->bih.biBitCount			= 24;
+	out_ptr->bih.biCompression		= BI_RGB;
+	out_ptr->bih.biSizeImage		= bm_dataSize;
+	out_ptr->bih.biXPelsPerMeter		= 0;
+	out_ptr->bih.biYPelsPerMeter		= 0;
+	out_ptr->bih.biClrUsed			= 0;
+	out_ptr->bih.biClrImportant		= 0;
+
+	TRACE(T_INFO, "file size %d width %d height %d bmWidthByte %d bmHeight %d\n", out_ptr->bfh.bfSize,
+		out_ptr->bih.biWidth, out_ptr->bih.biHeight, bmInfo.bmWidthBytes, bmInfo.bmHeight);
+
+	::GetDIBits(desk_dc, desk_bmp, 0, bmInfo.bmHeight, bm_data, (BITMAPINFO *)&out_ptr->bih,
+		DIB_RGB_COLORS);
+
+	out_ptr->len = bm_dataSize;
+	out_ptr->data = bm_data;
+
+	/* do the convertion */
+	ret = convert_gray(out_ptr, BINARY_MEAN);
+	ret = convert2blackwhite(out_ptr);
+
+	if (ret != ERR_NO_ERR) {
+		TRACE(T_ERROR, "binary process failed");
+		return ERR_DO_BINARY_CONVERT_FAILED; 
+	}
+
+	ret = save_picture(path, out_ptr);
+	if (ret != ERR_NO_ERR) {
+		TRACE(T_ERROR, "save file failed");
+		return ERR_SAVE_FILE_FAILED;
+	}
+	return ERR_NO_ERR;
+}
+
 void unit_test_picture(void)
 {
 	struct t_bmp tmp = {};
@@ -250,10 +327,29 @@ void unit_test_get_screen_rect(void)
 	RECT target_rc = {};
 
 	/* This should be the rect of role's level: likes Lv 14 */
+#if 0
 	target_rc.left = 24;
 	target_rc.right = 70;
 	target_rc.top = 588;
 	target_rc.bottom = 599;
+
+	/* Get the role name position*/
+	target_rc.left = 366;
+	target_rc.right = 419;
+	target_rc.top = 379;
+	target_rc.bottom = 390;
+
+	target_rc.left = 0; 
+	target_rc.right = 796;
+	target_rc.top = 0;
+	target_rc.bottom = 597;
+#else
+	/* Get the role name position*/
+	target_rc.left = 366;
+	target_rc.right = 419;
+	target_rc.top = 379;
+	target_rc.bottom = 390;
+#endif
 
 	ret = load_picture(L"D://1.bmp", &input);
 	if (ret != ERR_NO_ERR) {
@@ -265,9 +361,22 @@ void unit_test_get_screen_rect(void)
 		delete[] input.data;
 		return;
 	}
+	
 	delete[] input.data;
+
+	ret = convert_gray(&output, BINARY_WEIGHTED_MEAN);
+	ret = convert2blackwhite(&output);
+
 	ret = save_picture(L"D://1.2.bmp", &output);
 	delete[] output.data;
+}
+
+void unit_test_memleak_get_screen(void)
+{
+	while (1) {
+		unit_test_get_screen_rect();
+		Sleep(500);
+	}
 }
 
 int unit_test_get_screen(void)
@@ -276,15 +385,16 @@ int unit_test_get_screen(void)
 	struct t_bmp target = {};
 
 	ret = auto_mob_init();
-#if 0
-	//HWND hwnd = FindWindow(NULL, L"无标题 - 记事本");
+#if 1
+	HWND hwnd = FindWindow(NULL, L"无标题 - 记事本");
 	if (hwnd == NULL) {
 		return ERR_HWND_NOT_FOUND;
 	}
+	ret = get_screen(hwnd, L"D://1.bmp", &target);
 #else
 	auto_mob.mob_hwnd = FindWindow(NULL, auto_mob.mob_name);
-#endif
 	ret = get_screen(auto_mob.mob_hwnd, L"D://1.bmp", &target);
+#endif
 	if (ret != ERR_NO_ERR)
 		return ret;
 	delete[] target.data;
@@ -297,9 +407,7 @@ int unit_test_get_screen(void)
 
 int main()
 {
-	while (1) {
-		unit_test_get_screen_rect();
-		Sleep(500);
-	}
+	unit_test_get_screen_rect();
+	//unit_test_get_screen();
 }
 #endif /* __OWN_MAIN__ */
