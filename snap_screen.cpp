@@ -4,6 +4,7 @@
 #include "init.h"
 #include "debug.h"
 #include "output_handle.h"
+#include "snap_screen.h"
 
 /*	What we need in the module:
  *	1. Get picture from desk screen snap, store it in the memory.
@@ -11,25 +12,6 @@
  *	3. Prepare for Opencv;
  *	4. Do some basic recognition likes: 1) Number; 2) small icon;
  */
-
-struct t_bmp {
-	unsigned char *data;
-	unsigned int len;
-	BITMAPFILEHEADER bfh;
-	BITMAPINFOHEADER bih;
-};
-
-struct tag_rgba {
-	unsigned char b;
-	unsigned char g;
-	unsigned char r;
-	unsigned char reservered;
-};
-
-enum {
-	BINARY_WEIGHTED_MEAN = 1,
-	BINARY_MEAN
-};
 
 static unsigned char get_gray(unsigned char *ptr, int mode)
 {
@@ -51,7 +33,7 @@ static unsigned char get_gray(unsigned char *ptr, int mode)
  *	x4 T  x5
  *	x6 x7 x8
  */
-static unsigned char get_average_color(unsigned char *gray, int x, int y, int w, int h)
+unsigned char get_average_color(unsigned char *gray, int x, int y, int w, int h)
 {
 	int rs = 0;
 	/* If it's black or white, just return the original value */
