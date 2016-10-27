@@ -460,7 +460,7 @@ void unit_test_get_info_from_dnf(void)
 	delete[] input.data;
 }
 
-#define __OWN_MAIN__ 1
+//#define __OWN_MAIN__ 1
 #ifdef __OWN_MAIN__
 
 int main()

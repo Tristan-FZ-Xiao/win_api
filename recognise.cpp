@@ -1,4 +1,3 @@
-#include "snap_screen.h"
 #include<windows.h>
 #include <wchar.h>
 
