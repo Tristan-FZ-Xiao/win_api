@@ -36,27 +36,27 @@ unsigned char get_average_color(unsigned char *gray, int x, int y, int w, int h)
 {
 	int rs = 0;
 	/* If it's black or white, just return the original value */
-	if (*(gray + (y * w + x) * 3) == 255 || *(gray + (y * w + x) * 3) == 0) {
-		return *(gray + (y * w + x) * 3);
+	if (*(gray + (y * w + x) * 4) == 255 || *(gray + (y * w + x) * 4) == 0) {
+		return *(gray + (y * w + x) * 4);
 	}
 
-	rs = *(gray + (y * w + x) * 3)									// T
-		+ (x == 0 || y == 0 ? 255 : *(gray + ((y - 1) * w + x - 1) * 3))			// x1
-		+ (y == 0 ? 255 : *(gray + ((y - 1) * w + x) * 3))					// x2
-		+ (x == w - 1 || y == 0 ? 255 : *(gray + ((y - 1) * w + x + 1) * 3))		// x3
-		+ (x == 0 ? 255 : *(gray + (y * w + x - 1) * 3))					// x4
-		+ (x == w - 1 ? 255 : *(gray + (y * w + x + 1) * 3))					// x5
-		+ (x == 0 || y == h - 1 ? 255 : *(gray + ((y + 1) * w + x - 1) * 3))		// x6
-		+ (y == h - 1 ? 255 : *(gray + ((y + 1) * w + x) * 3))				// x7
-		+ (x == w - 1 || y == h - 1 ? 255 : *(gray + ((y + 1) * w + x + 1) * 3));	// x8
+	rs = *(gray + (y * w + x) * 4)									// T
+		+ (x == 0 || y == 0 ? 255 : *(gray + ((y - 1) * w + x - 1) * 4))			// x1
+		+ (y == 0 ? 255 : *(gray + ((y - 1) * w + x) * 4))					// x2
+		+ (x == w - 1 || y == 0 ? 255 : *(gray + ((y - 1) * w + x + 1) * 4))		// x3
+		+ (x == 0 ? 255 : *(gray + (y * w + x - 1) * 4))					// x4
+		+ (x == w - 1 ? 255 : *(gray + (y * w + x + 1) * 4))					// x5
+		+ (x == 0 || y == h - 1 ? 255 : *(gray + ((y + 1) * w + x - 1) * 4))		// x6
+		+ (y == h - 1 ? 255 : *(gray + ((y + 1) * w + x) * 4))				// x7
+		+ (x == w - 1 || y == h - 1 ? 255 : *(gray + ((y + 1) * w + x + 1) * 4));	// x8
 
 		return (unsigned char) (rs / 9);
 }
 
 static unsigned char get_color(unsigned char *gray, int x, int y, int w, int h)
 {
-	TRACE(T_INFO, "value %d", *(gray + (y * w + x) * 3));
-	return *(gray + (y * w + x) * 3);
+	TRACE(T_INFO, "value %d", *(gray + (y * w + x) * 4));
+	return *(gray + (y * w + x) * 4);
 }
 
 /* convert picture from color to gray */
@@ -71,11 +71,12 @@ int convert_gray(struct t_bmp *in_ptr, int mode)
 		return ERR_COMMON_NULL_ERROR;
 	}
 	TRACE(T_INFO, "Do the gray convert process");	
-	for (ptr = in_ptr->data; i < in_ptr->len; i += 3) {
+	for (ptr = in_ptr->data; i < in_ptr->len; i += 4) {
 		new_color = get_gray((ptr + i), mode);
 		ptr[i + 0] = new_color;
 		ptr[i + 1] = new_color;
 		ptr[i + 2] = new_color;
+		ptr[i + 3] = new_color;
 	}
 	return ERR_NO_ERR;
 }
@@ -115,16 +116,18 @@ int convert2blackwhite(struct t_bmp *in_ptr, int mode)
 				}
 			}
 			if (flag == 1) {
-				TRACE(T_INFO, "x %d y %d WHITE", j, i);
-				*(ptr + ((i * w + j) * 3)) = 255;
-				*(ptr + ((i * w + j) * 3 + 1)) = 255;
-				*(ptr + ((i * w + j) * 3 + 2)) = 255;
+				//TRACE(T_INFO, "x %d y %d WHITE", j, i);
+				*(ptr + ((i * w + j) * 4)) = 255;
+				*(ptr + ((i * w + j) * 4 + 1)) = 255;
+				*(ptr + ((i * w + j) * 4 + 2)) = 255;
+				*(ptr + ((i * w + j) * 4 + 3)) = 255;
 			}
 			else {
-				TRACE(T_INFO, "x %d y %d BLACK", j, i);
-				*(ptr + ((i * w + j) * 3)) = 0;
-				*(ptr + ((i * w + j) * 3 + 1)) = 0;
-				*(ptr + ((i * w + j) * 3 + 2)) = 0;
+				//TRACE(T_INFO, "x %d y %d BLACK", j, i);
+				*(ptr + ((i * w + j) * 4)) = 0;
+				*(ptr + ((i * w + j) * 4 + 1)) = 0;
+				*(ptr + ((i * w + j) * 4 + 2)) = 0;
+				*(ptr + ((i * w + j) * 4 + 3)) = 0;
 			}
 		}
 	}
@@ -143,13 +146,13 @@ static int __get_screen_rect(struct t_bmp *in_ptr, RECT target_rc, struct t_bmp 
 	rc_width = target_rc.right - target_rc.left;
 	/* align 4 Byte */ 
 	rc_width = (rc_width % 4 == 0) ? (rc_width / 4) * 4 : ((rc_width / 4) + 1) * 4;
-	len = (target_rc.bottom - target_rc.top) * rc_width * 3;
+	len = (target_rc.bottom - target_rc.top) * rc_width * 4;
 	t_buf = new unsigned char[len];
 
 	/* As pixel - buffer mapping from the left-bottom, do the transfer. */
 	for (; i < (target_rc.bottom - target_rc.top); i ++) {
-		memcpy(t_buf + rc_width * i * 3, in_ptr->data + ((in_ptr->bih.biHeight - target_rc.bottom + i) * 
-			in_ptr->bih.biWidth + target_rc.left) * 3, rc_width * 3);
+		memcpy(t_buf + rc_width * i * 4, in_ptr->data + ((in_ptr->bih.biHeight - target_rc.bottom + i) * 
+			in_ptr->bih.biWidth + target_rc.left) * 4, rc_width * 4);
 	}
 	memcpy(&out_ptr->bfh, &in_ptr->bfh, sizeof(BITMAPFILEHEADER));
 	memcpy(&out_ptr->bih, &in_ptr->bih, sizeof(BITMAPINFOHEADER));
@@ -164,7 +167,7 @@ static int __get_screen_rect(struct t_bmp *in_ptr, RECT target_rc, struct t_bmp 
 	out_ptr->bih.biWidth			= rc_width;
 	out_ptr->bih.biHeight			= target_rc.bottom - target_rc.top;
 	out_ptr->bih.biPlanes			= 1;
-	out_ptr->bih.biBitCount			= 24;
+	out_ptr->bih.biBitCount			= 32;
 	out_ptr->bih.biCompression		= BI_RGB;
 	out_ptr->bih.biSizeImage		= len;
 	out_ptr->bih.biXPelsPerMeter		= 0;
@@ -290,7 +293,7 @@ int get_screen(HWND hwnd, wchar_t *path, struct t_bmp *out_ptr)
 	out_ptr->bih.biWidth			= bmInfo.bmWidth;
 	out_ptr->bih.biHeight			= bmInfo.bmHeight;
 	out_ptr->bih.biPlanes			= 1;
-	out_ptr->bih.biBitCount			= 24;
+	out_ptr->bih.biBitCount			= bmInfo.bmBitsPixel;
 	out_ptr->bih.biCompression		= BI_RGB;
 	out_ptr->bih.biSizeImage		= bm_dataSize;
 	out_ptr->bih.biXPelsPerMeter		= 0;
@@ -308,8 +311,8 @@ int get_screen(HWND hwnd, wchar_t *path, struct t_bmp *out_ptr)
 	out_ptr->data = bm_data;
 
 	/* do the convertion */
-	//ret = convert_gray(out_ptr, BINARY_MEAN);
-	//ret = convert2blackwhite(out_ptr, BOTH_BLACKWHITE);
+	ret = convert_gray(out_ptr, BINARY_MEAN);
+	ret = convert2blackwhite(out_ptr, BOTH_BLACKWHITE);
 
 	if (ret != ERR_NO_ERR) {
 		TRACE(T_ERROR, "binary process failed");
@@ -460,12 +463,13 @@ void unit_test_get_info_from_dnf(void)
 	delete[] input.data;
 }
 
-//#define __OWN_MAIN__ 1
+#define __OWN_MAIN__ 1
 #ifdef __OWN_MAIN__
 
 int main()
 {
-	unit_test_get_info_from_dnf();
+	//unit_test_get_info_from_dnf();
+	unit_test_get_screen();
 	//unit_test_get_screen();
 }
 #endif /* __OWN_MAIN__ */

@@ -186,7 +186,7 @@ int test_map_2[50] = {
 	1,	0,	1,	1,	1,	1,	0,	0,	1,	0
 };
 
-#define __OWN_MAIN__ 1
+//#define __OWN_MAIN__ 1
 #ifdef __OWN_MAIN__
 int main()
 {
