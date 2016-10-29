@@ -6,171 +6,193 @@
 /*	
  *	What we need in the module: find a best way to the boss based on BFs.
  */
-#define MAP_X	10
-#define MAP_Y	10
 
-struct route_node {
-	POINT pos;
-	int parent;
-	int weight;
-	int used;
-};
-
-enum {
-	T_UNUSED = 0,
-	T_USED = 1,
-};
-
-/* Check whether the node is repeated */
-int check_repeat_node(struct route_node *ptr, int x, int y, int n)
+int save_neighbour_pos(int *map, int width, int heigh, int x, int y)
 {
-	int i = 0;
-
-	for (; i < n; i++) {
-		if ((ptr + i)->pos.x == x && (ptr + i)->pos.y == y)
-			return 1;
+	/*	Only match UP DOWN LEFT RIGHT, need to filter x.
+	 *	x		UP		x
+	 *	LEFT		(x, y)		RIGHT
+	 *	x		DOWN	x
+	 */
+	// LEFT
+	if (x != 0) {
+		if (*(map + y * width + x - 1) != 0)
+			*(map + y * width + x - 1)  += 1;
+	}
+	// UP
+	if (y != 0) {
+		if (*(map + (y - 1) * width + x) != 0)
+			*(map + (y - 1) * width + x) += 1;
+	}
+	// RIGHT
+	if (x != width - 1) {
+		if (*(map + y * width + x  + 1) != 0)
+			*(map + y * width + x + 1) += 1;
+	}
+	// DOWN
+	if (y != heigh - 1) {
+		if (*(map + (y + 1) * width + x) != 0)
+			*(map + (y + 1) * width + x) += 1;
 	}
 	return 0;
 }
 
-int save_neighbour_pos(int map[][10], int x, int y, int target_x, int target_y, struct route_node *node, int current)
+enum {
+	DIRECT_UP = 100,
+	DIRECT_DOWN,
+	DIRECT_LEFT,
+	DIRECT_RIGHT,
+	DIRECT_UN_DO,
+};
+
+/*
+ * map:	test map
+ * width:	map's width
+ * heigh:	map's heigh
+ * x:		current position (x)
+ * y:		current position (y)
+ * out_i:	next step(x)
+ * out_j:	next step(y)
+ * direct_x, direct_y:	show relate position between target_x and current_x, it help more effective way to the target.
+ *
+ */
+int get_next_pos(int map[], int width, int heigh, int x, int y, int *out_i, int * out_j, int direct_x, int direct_y)
 {
-	int i, j;
-	int n = 0;
+	int min = 9999;
+	*out_i = 9999;
+	*out_j = 9999;
 
-	struct route_node *ptr = node + current;
-
-	for (i = x - 1; i <= x + 1; i ++) {
-		if (i < 0)
-			continue;
-		for (j = y - 1; j <= y + 1; j++) {
-			/*	Only match UP DOWN LEFT RIGHT, need to filter x.
-			 *	x		UP		x
-			 *	LEFT		(x, y)		RIGHT
-			 *	x		DOWN	x
-			 */
-			if (j < 0 || (abs(j - y) == abs(i - x)) || check_repeat_node(node, i, j, current + n)) {
-				continue;
-			}
-			if (map[j][i] == 1) {
-				(ptr + n)->pos.x = i;
-				(ptr + n)->pos.y = j;
-				(ptr + n)->used = T_UNUSED;
-				(ptr + n)->parent = current;
-				/* Key point: calculate the weight of position */
-				(ptr + n)->weight = MAP_X + MAP_Y - abs(target_x - i) - abs(target_y - j);
-				n++;
-			}
+	/* LEFT. */
+	if (x != 0) {
+		if (*(map + y * width + x - 1) &&  min > *(map + y * width + x - 1)) {
+			min = *(map + y * width + x - 1);
+			*out_i = x - 1;
+			*out_j = y;
 		}
 	}
-	return current + n;
-}
-
-/* Get the position with the valid max weight */
-int get_next_pos(struct route_node *node, int current, int n)
-{
-	int i;
-	int max = -1;
-	int flag = 0;
-
-	/* Only one node */
-	if (n == 1) {
-		if (node->used == T_UNUSED)
-			return 0;
-		else
-			return -1;
-	}
-
-	for (i = 0, max = 0; i < n; i++) {
-		/* Find the first unused node */
-		if (!flag) {
-			if ((node + i)->used == T_UNUSED) {
-				max = i;
-				flag = 1;
-			}
-			else {
-				continue;
-			}
+	// UP
+	if (y != 0) {
+		if (*(map + (y - 1) * width + x) && min > *(map + (y - 1) * width + x)) {
+			min = *(map + (y - 1) * width + x);
+			*out_i = x;
+			*out_j = y - 1;
 		}
-		else {
-			if ((node + i)->used == T_UNUSED &&
-			(node + max)->weight < (node + i)->weight) {
-				max = i;
-			}
+		else if (1 && direct_y == DIRECT_UP && (min == *(map + (y - 1) * width + x))) {
+			*out_i = x;
+			*out_j = y - 1;
 		}
 	}
-	if (max > 0)
-		(node + max)->used = T_USED;
-	return max;
-}
-
-int all_node_used(struct route_node *node, int n)
-{
-	int i;
-
-	for (i = 0; i < n; i++) {
-		if ((node + i)->used == T_UNUSED)
-			return 0;
+	// RIGHT
+	if (x != width - 1) {
+		if (*(map + y * width + x + 1) && min > *(map + y * width + x + 1)) {
+			min = *(map + y * width + x + 1);
+			*out_i = x + 1;
+			*out_j = y;
+		}
+		else if (1 && direct_x == DIRECT_RIGHT && (min == *(map + y * width + x + 1))) {
+			*out_i = x + 1;
+			*out_j = y;
+		}
 	}
-	return 1;
-}
-
-void print_node(struct route_node *ptr, int n)
-{
-	if ((ptr + n)->parent != 0) {
-		print_node(ptr, (ptr + n)->parent);
+	// DOWN
+	if (y != heigh - 1) {
+		if (*(map + (y + 1) * width + x) && min > *(map + (y + 1) * width + x)) {
+			*out_i = x;
+			*out_j = y + 1;
+		}
+		else if (1 && direct_y == DIRECT_DOWN && (min == *(map + (y + 1) * width + x))) {
+			*out_i = x;
+			*out_j = y + 1;
+		}
 	}
-	printf("X: %d, Y: %d\n", (ptr+n)->pos.x, (ptr+n)->pos.y);
-}
 
-int map_route(int map[][10], int x, int y, int target_x, int target_y)
-{
-	struct route_node node[100] = {};
-
-	int i = x;
-	int j = y;
-	int n = 0;
-	int current = 0;
-	int old_cur = 0;
-
-	node->parent = 0;
-	node->pos.x = x;
-	node->pos.y = y;
-	node->used = T_USED;
-	node->weight = MAP_X + MAP_Y - abs(target_x - x) - abs(target_y - y);
-	n++;
-
-	do {
-		n = save_neighbour_pos(map, i, j, target_x, target_y, node, n);
-		/* Get the max valid weight node */
-		current = get_next_pos(node, current, n);
-		(node + current)->parent = old_cur;
-		i = (node + current)->pos.x;
-		j = (node + current)->pos.y;
-		old_cur = current;
-	} while (all_node_used(node,n) || (!(i == target_x && j == target_y)));
-	print_node(node, current);
+	if (*out_i == 9999) {
+		return -1;
+	}
+	*(map + *out_j * width + *out_i) = *(map + (y * width + x)) + 1;
 	return ERR_NO_ERR;
 }
 
-int test_map[10][10] = {
+void print_map(int map[], int width, int heigh)
+{
+	int i, j;
+
+	printf("The MAP:\n\n");
+	for (i = 0; i < heigh; i ++) {
+		for (j = 0; j < width; j ++) {
+			printf("%d\t", *(map + i * width + j));
+		}
+		printf("\n");
+	}
+}
+
+void print_route(POINT *route, int len)
+{
+	int i;
+	TRACE(T_INFO, "Show the Route INFO:\n");
+	for (i = 0; i < len; i++) {
+		if (i && (route + i)->x == 0 && (route + i)->y == 0) {
+			break;
+		}
+		TRACE(T_INFO, "[%d]:\t\t (%d,\t%d)", i, (route + i)->x, (route + i)->y);
+	}
+	TRACE(T_INFO, "Finish the Route INFO\n");
+}
+
+POINT *map_route(int map[], int width, int heigh, int x, int y, int target_x, int target_y)
+{
+	int ret = 0;
+	int i = 0;
+
+	POINT *route = new POINT[width * heigh];
+	if (!route) {
+		return NULL;
+	}
+	memset(route, 0, sizeof(POINT) * width * heigh);
+	(route + i)->x = x;
+	(route + i ++)->y = y;
+
+	do {
+		save_neighbour_pos(map, width, heigh, x, y);
+		ret = get_next_pos(map, width, heigh, x, y, &x, &y,
+			(x < target_x ? DIRECT_RIGHT : (x == target_x ? DIRECT_UN_DO : DIRECT_LEFT)),
+			(y < target_y ? DIRECT_DOWN : (y == target_y ? DIRECT_UN_DO : DIRECT_UP)));
+		if (i < width * heigh) {
+			(route + i)->x = x;
+			(route + i++)->y = y;
+		}
+	} while (ret != 0 || !(x == target_x && y == target_y));
+	return route;
+}
+
+int test_map_1[100] = {
 	0,	1,	0,	0,	0,	0,	1,	1,	1,	0,
 	0,	1,	1,	0,	1,	0,	1,	0,	1,	0,
 	0,	1,	0,	0,	1,	0,	1,	0,	1,	0,
-	1,	1,	1,	1,	1,	0,	1,	0,	1,	0,
-	1,	0,	1,	0,	0,	0,	1,	0,	1,	0,
-	1,	1,	1,	0,	0,	0,	1,	0,	1,	1,
-	1,	0,	1,	0,	0,	0,	1,	0,	1,	0,
-	0,	0,	1,	0,	0,	0,	1,	0,	1,	0,
+	1,	1,	1,	1,	1,	0,	1,	1,	1,	0,
+	1,	0,	1,	0,	0,	1,	1,	0,	1,	0,
+	1,	1,	1,	0,	1,	1,	1,	0,	1,	1,
+	1,	0,	1,	0,	1,	1,	1,	1,	1,	0,
+	0,	0,	1,	0,	1,	1,	0,	0,	1,	0,
 	0,	0,	1,	1,	0,	1,	1,	0,	1,	0,
 	0,	0,	0,	1,	1,	1,	0,	0,	1,	0
+};
+
+int test_map_2[50] = {
+	1,	0,	1,	1,	1,	0,	1,	1,	1,	1,
+	1,	1,	0,	0,	1,	0,	1,	0,	0,	0,
+	1,	0,	1,	1,	1,	1,	1,	0,	0,	1,
+	1,	1,	1,	0,	0,	0,	1,	1,	1,	1,
+	1,	0,	1,	1,	1,	1,	0,	0,	1,	0
 };
 
 #define __OWN_MAIN__ 1
 #ifdef __OWN_MAIN__
 int main()
 {
-	map_route(test_map, 0, 5, 9, 5);
+	POINT *ptr = map_route(test_map_1, 10, 10, 0, 5, 9, 5);
+	//POINT *ptr = map_route(test_map_2, 10, 5, 0, 0, 9, 2);
+	print_route(ptr, 10 * 5);
 	return 0;
 }
 #endif /* __OWN_MAIN__ */
