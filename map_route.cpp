@@ -154,6 +154,7 @@ POINT *map_route(int map[], int width, int heigh, int x, int y, int target_x, in
 
 	do {
 		save_neighbour_pos(map, width, heigh, x, y);
+		print_map(map, width, heigh);
 		ret = get_next_pos(map, width, heigh, x, y, &x, &y,
 			(x < target_x ? DIRECT_RIGHT : (x == target_x ? DIRECT_UN_DO : DIRECT_LEFT)),
 			(y < target_y ? DIRECT_DOWN : (y == target_y ? DIRECT_UN_DO : DIRECT_UP)));

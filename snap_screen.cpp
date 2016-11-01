@@ -9,7 +9,6 @@
 /*	What we need in the module:
  *	(DONE) 1. Get picture from desk screen snap, store it in the memory.
  *	(DONE) 2. Do some BMP transfer: 1) color to black-white; 2) color to gray;
- *	(TODO) 3. Prepare for Opencv;
  */
 
 static unsigned char get_gray(unsigned char *ptr, int mode)
@@ -145,7 +144,7 @@ static int __get_screen_rect(struct t_bmp *in_ptr, RECT target_rc, struct t_bmp 
 
 	rc_width = target_rc.right - target_rc.left;
 	/* align 4 Byte */ 
-	rc_width = (rc_width % 4 == 0) ? (rc_width / 4) * 4 : ((rc_width / 4) + 1) * 4;
+	//rc_width = (rc_width % 4 == 0) ? (rc_width / 4) * 4 : ((rc_width / 4) + 1) * 4;
 	len = (target_rc.bottom - target_rc.top) * rc_width * 4;
 	t_buf = new unsigned char[len];
 
@@ -311,8 +310,8 @@ int get_screen(HWND hwnd, wchar_t *path, struct t_bmp *out_ptr)
 	out_ptr->data = bm_data;
 
 	/* do the convertion */
-	ret = convert_gray(out_ptr, BINARY_MEAN);
-	ret = convert2blackwhite(out_ptr, BOTH_BLACKWHITE);
+	//ret = convert_gray(out_ptr, BINARY_MEAN);
+	//ret = convert2blackwhite(out_ptr, BOTH_BLACKWHITE);
 
 	if (ret != ERR_NO_ERR) {
 		TRACE(T_ERROR, "binary process failed");
@@ -335,6 +334,20 @@ void unit_test_picture(void)
 	save_picture(L"D://1.1.bmp", &tmp);
 }
 
+#include <stdio.h>
+
+void output_character(unsigned char *ptr, int len)
+{
+	int i;
+
+	for (i = 0; i < len; i++) {
+		if (i && !(i % 16)) {
+			printf("\n");
+		}
+		printf("0x%02x, ", *(ptr + i));
+	}
+}
+
 void unit_test_get_screen_rect(void)
 {
 	struct t_bmp input = {};
@@ -344,46 +357,26 @@ void unit_test_get_screen_rect(void)
 
 	/* This should be the rect of role's level: likes Lv 14 */
 #if 0
-	target_rc.left = 24;
-	target_rc.right = 70;
-	target_rc.top = 588;
-	target_rc.bottom = 599;
-
-	/* Get the role name position*/
-	target_rc.left = 366;
-	target_rc.right = 419;
-	target_rc.top = 379;
-	target_rc.bottom = 390;
-
-	target_rc.left = 0; 
-	target_rc.right = 796;
-	target_rc.top = 0;
-	target_rc.bottom = 597;
-#else
-	/* Get the role name position*/
-	target_rc.left = 366;
-	target_rc.right = 419;
-	target_rc.top = 379;
-	target_rc.bottom = 390;
+	/* Get the role's HP/ position*/
+	target_rc.left = 204;
+	target_rc.right = 250;
+	target_rc.top = 283;
+	target_rc.bottom = 291;
 #endif
+	target_rc.left = 0;
+	target_rc.right = 5;
+	target_rc.top = 0;
+	target_rc.bottom = 8; 
 
-	ret = load_picture(L"D://1.bmp", &input);
+	ret = load_picture(L"D://0.3.bmp", &input);
 	if (ret != ERR_NO_ERR) {
 		return;
 	}
 
 	ret = get_screen_rect(&input, target_rc, &output);
-	if (ret != ERR_NO_ERR) {
-		delete[] input.data;
-		return;
-	}
-	
+	ret = save_picture(L"D://z.3.bmp", &output);
 	delete[] input.data;
-
-	ret = convert_gray(&output, BINARY_WEIGHTED_MEAN);
-	ret = convert2blackwhite(&output, BOTH_BLACKWHITE);
-
-	ret = save_picture(L"D://1.2.bmp", &output);
+	output_character(output.data, output.len);
 	delete[] output.data;
 }
 
@@ -401,7 +394,7 @@ int unit_test_get_screen(void)
 	struct t_bmp target = {};
 
 	ret = auto_mob_init();
-#if 1
+#if 0
 	HWND hwnd = FindWindow(NULL, L"无标题 - 记事本");
 	if (hwnd == NULL) {
 		return ERR_HWND_NOT_FOUND;
@@ -409,13 +402,12 @@ int unit_test_get_screen(void)
 	ret = get_screen(hwnd, L"D://1.bmp", &target);
 #else
 	auto_mob.mob_hwnd = FindWindow(NULL, auto_mob.mob_name);
-	ret = get_screen(auto_mob.mob_hwnd, L"D://1.bmp", &target);
+	ret = get_screen(auto_mob.mob_hwnd, L"D://role_i.bmp", &target);
 #endif
 	if (ret != ERR_NO_ERR)
 		return ret;
 	delete[] target.data;
 	return ERR_NO_ERR;
-
 }
 
 void unit_test_get_info_from_dnf(void)
@@ -427,6 +419,9 @@ void unit_test_get_info_from_dnf(void)
 
 	ret = auto_mob_init();
 	auto_mob.mob_hwnd = FindWindow(NULL, auto_mob.mob_name);
+	if (!auto_mob.mob_hwnd) {
+		return;
+	}
 	ret = get_screen(auto_mob.mob_hwnd, L"D://game.bmp", &input);
 
 	/* This should be the rect of role's level: likes Lv 14 */
@@ -463,13 +458,13 @@ void unit_test_get_info_from_dnf(void)
 	delete[] input.data;
 }
 
-#define __OWN_MAIN__ 1
+//#define __OWN_MAIN__ 1
 #ifdef __OWN_MAIN__
 
 int main()
 {
+	unit_test_get_screen_rect();
 	//unit_test_get_info_from_dnf();
-	unit_test_get_screen();
 	//unit_test_get_screen();
 }
 #endif /* __OWN_MAIN__ */
