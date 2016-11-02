@@ -13,27 +13,45 @@
  */
 /*	The charactor of 0 - 9
  */
-unsigned char num_charactor[10][5] = {
-	{6, 2, 2, 2, 6},	/* 0 */
-	{2, 8, 1, 0, 0},	/* 1 */
-	{4, 3, 3, 3, 3},	/* 2 */
-	{2, 2, 3, 3, 5},	/* 3 */
-	{2, 2, 4, 8, 2},	/* 4 */
-	{6, 3, 3, 3, 4},	/* 5 */
-	{5, 3, 3, 3, 4},	/* 6 */
-	{1, 5, 3, 2, 0},	/* 7 */
-	{5, 3, 3, 3, 5},	/* 8 */
-	{4, 3, 3, 3, 5}		/* 9 */	
+int num_charactor[10] = {
+	62226,	/* 0 */
+	281,	/* 1 */
+	43333,	/* 2 */
+	22335,	/* 3 */
+	22482,	/* 4 */
+	63334,	/* 5 */
+	53334,	/* 6 */
+	1532,	/* 7 */
+	53335,	/* 8 */
+	43335	/* 9 */	
 };
 
-void __get_num_charactor_by_num(unsigned char num[][5], int in_len, unsigned char target, int bit,
-				unsigned char **output, int *out_len)
+#include <math.h>
+
+int get_num_digit(int num)
+{
+	int i;
+
+	for (i = 0; i <= 10; i ++) {
+		num /= 10;
+		if (num == 0) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+void __get_num_charactor_by_num(int *num, int in_len, char target, int bit,
+				int *output, int *out_len)
 {
 	int i;
 	int j = 0;
+	int n = 0; //(int)pow((long double)10, bit);
 
 	for (i = 0; i < in_len; i ++) {
-		if (num[i][bit] == target) {
+		n = get_num_digit(num[i]);
+		n = (int) pow((long double)10, n - bit);
+		if ((num[i] / n % 10) == target) {
 			*(output + j) = num[i];
 			j ++;
 		}
@@ -41,7 +59,19 @@ void __get_num_charactor_by_num(unsigned char num[][5], int in_len, unsigned cha
 	*out_len = j;
 }
 
-void print_num(unsigned char *ptr, int len)
+int get_num_by_charactor(int charactor)
+{
+	int i;
+
+	for (i = 0; i < 10; i ++) {
+		if (charactor == num_charactor[i]) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+void print_num(int *ptr, int len)
 {
 	int i;
 
@@ -53,18 +83,18 @@ void print_num(unsigned char *ptr, int len)
 
 void unit_test_get_num_charctor_by_num(void)
 {
-	unsigned char *output[10];
+	int output[10] = {};
 	int out_len;
 	int i;
 
 	__get_num_charactor_by_num(num_charactor, 10, 6, 0,
 				output, &out_len);
 	for (i = 0; i < out_len; i ++) {
-		print_num(output[i], 5);
+		print_num(output, 5);
 	}
 }
 
-void __calc_image_charactor(struct t_bmp *input, unsigned char *output)
+void __calc_image_charactor(struct t_bmp *input, int *output)
 {
 	int w = input->bih.biWidth;
 	int h = input->bih.biHeight;
@@ -80,7 +110,7 @@ void __calc_image_charactor(struct t_bmp *input, unsigned char *output)
 
 void unit_test_calc_image_charactor(void)
 {
-	unsigned char *output = NULL; 
+	int *output = NULL; 
 	struct t_bmp input = {};
 	wchar_t cmd[128] = {};
 	int ret = 0;
@@ -92,14 +122,48 @@ void unit_test_calc_image_charactor(void)
 		if (ret != ERR_NO_ERR) {
 			return;
 		}
-		output = new unsigned char[input.bih.biWidth];
-		memset(output, 0, input.bih.biWidth);
+		output = new int[input.bih.biWidth];
+		memset(output, 0, sizeof(int) * input.bih.biWidth);
 		__calc_image_charactor(&input, output);
 		print_num(output, input.bih.biWidth);
 		delete(input.data);
 		delete(output);
 	}
+}
 
+
+char * __recognise_image_num(char *ptr, int *len, int *out_num)
+{
+	int output[10] = {};
+	int out_len;
+	int i;
+
+	__get_num_charactor_by_num(num_charactor, 10, *ptr - 48, 0,
+				output, &out_len);
+	for (i = 1; i < 5; i ++) {
+		__get_num_charactor_by_num(output, out_len, *(ptr + i) - 48, i,
+				output, &out_len);
+		if (out_len == 1) {
+			*out_num = get_num_by_charactor(output[0]);
+			*len = *len - get_num_digit(output[0]) - 1;
+			return (ptr + get_num_digit(output[0]) + 1);
+		}
+	}
+}
+
+void unit_test_recognise_image_num(void)
+{
+	const char *num_char = "28162226281433332233522482633345333415325333543335";
+	char *ptr = NULL;
+
+	int len = strlen(num_char);
+	int recognise_num = 0;
+	ptr = (char *)num_char;
+
+	do {
+		ptr = __recognise_image_num(ptr, &len, &recognise_num);
+		printf("recognise number: %d\n", recognise_num);
+	} while (len > 0 && *ptr != ' ');
 }
 
 unsigned char nums_charactor[10][5];
@@ -162,7 +226,9 @@ int main()
 {
 	//show_nums_charactor();
 	//unit_test_get_num_charctor_by_num();
-	unit_test_calc_image_charactor();
+	//unit_test_calc_image_charactor();
+	unit_test_recognise_image_num();
+
 	return 0;
 }
 #endif /* __OWN_MAIN__ */
