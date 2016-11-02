@@ -64,29 +64,6 @@ void __calc_image_charactor(struct t_bmp *input, int *output)
 	}
 }
 
-void unit_test_calc_image_charactor(void)
-{
-	int *output = NULL; 
-	struct t_bmp input = {};
-	wchar_t cmd[128] = {};
-	int ret = 0;
-	int i = 0;
-
-	for (i = 0; i < 10; i ++) {
-		wsprintf(cmd, L"D://0.%d.bmp", i);
-		ret = load_picture(cmd, &input);
-		if (ret != ERR_NO_ERR) {
-			return;
-		}
-		output = new int[input.bih.biWidth];
-		memset(output, 0, sizeof(int) * input.bih.biWidth);
-		__calc_image_charactor(&input, output);
-		print_num(output, input.bih.biWidth);
-		delete(input.data);
-		delete(output);
-	}
-}
-
 int get_num(int num, int new_bit)
 {
 	return num * 10 + new_bit;
@@ -124,22 +101,6 @@ char *__recognise_image_num(char *ptr, int *len, int *out_num)
 	}
 }
 
-void unit_test_recognise_image_num(void)
-{
-	const char *num_char = "28162226281433332233522482633345333415325333543335";
-	char *ptr = NULL;
-
-	int len = strlen(num_char);
-	int recognise_num = 0;
-	ptr = (char *)num_char;
-
-	do {
-		ptr = __recognise_image_num(ptr, &len, &recognise_num);
-		printf("recognise number: %d\n", recognise_num);
-	} while (len > 0 && *ptr != ' ');
-}
-
-unsigned char nums_charactor[10][5];
 int calc_number_charactor(unsigned char *ptr, int len, unsigned char *num_charactor)
 {
 	int i, j;
@@ -159,21 +120,16 @@ void print_charactor(unsigned char ptr[][5], int len)
 	int i,j;
 
 	for (i = 0; i < len; i ++) {
-		printf("{");
 		for (j = 0; j < 5; j ++) {
-			if (j == 4) {
-				printf("%d",ptr[i][j]);
-			}
-			else {
-				printf("%d, ",ptr[i][j]);
-			}
+			printf("%d",ptr[i][j]);
 		}
-		printf("}\n");
+		printf(",\n");
 	}
 }
 
-void show_nums_charactor(void)
+void unit_test_show_nums_charactor(void)
 {
+	unsigned char nums_charactor[10][5];
 	struct t_bmp input = {};
 	int ret = 0;
 	int i;
@@ -190,6 +146,45 @@ void show_nums_charactor(void)
 	}
 	print_charactor(nums_charactor, 10);
 }
+
+void unit_test_recognise_image_num(void)
+{
+	const char *num_char = "28162226281433332233522482633345333415325333543335";
+	char *ptr = NULL;
+
+	int len = strlen(num_char);
+	int recognise_num = 0;
+	ptr = (char *)num_char;
+
+	do {
+		ptr = __recognise_image_num(ptr, &len, &recognise_num);
+		printf("recognise number: %d\n", recognise_num);
+	} while (len > 0 && *ptr != ' ');
+}
+
+void unit_test_calc_image_charactor(void)
+{
+	int *output = NULL; 
+	struct t_bmp input = {};
+	wchar_t cmd[128] = {};
+	int ret = 0;
+	int i = 0;
+
+	for (i = 0; i < 10; i ++) {
+		wsprintf(cmd, L"D://0.%d.bmp", i);
+		ret = load_picture(cmd, &input);
+		if (ret != ERR_NO_ERR) {
+			return;
+		}
+		output = new int[input.bih.biWidth];
+		memset(output, 0, sizeof(int) * input.bih.biWidth);
+		__calc_image_charactor(&input, output);
+		print_num(output, input.bih.biWidth);
+		delete(input.data);
+		delete(output);
+	}
+}
+
 
 #define __OWN_MAIN__ 1
 #ifdef __OWN_MAIN__
