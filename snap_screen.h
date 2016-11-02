@@ -21,12 +21,18 @@ enum {
 	BINARY_MEAN
 };
 
+enum {
+	ONLY_BLACK = 1,
+	ONLY_WHITE,
+	BOTH_BLACKWHITE,
+};
+
 extern int get_screen(HWND hwnd, wchar_t *path, struct t_bmp *out_ptr);
 extern int save_picture(wchar_t *path, struct t_bmp *in_ptr);
 extern int load_picture(wchar_t *path, struct t_bmp *out_ptr);
 extern int get_screen_rect(struct t_bmp *in_ptr, RECT target_rc, struct t_bmp *out_ptr);
 
-extern int convert2blackwhite(struct t_bmp *in_ptr);
+extern int convert2blackwhite(struct t_bmp *in_ptr, int mode);
 extern int convert_gray(struct t_bmp *in_ptr, int mode);
 extern unsigned char get_average_color(unsigned char *gray, int x, int y, int w, int h);
 

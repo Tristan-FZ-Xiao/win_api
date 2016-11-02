@@ -87,8 +87,8 @@ char *__recognise_image_num(char *ptr, int *len, int *out_num)
 	int num = 0;
 	int target = 0;
 
-	for (i = 0; i < *len; i ++) {
-		num = get_num(num, (*(ptr + i) - 0x30));
+	for (i = 0; i < 5; i ++) {
+		num = get_num(num, *(ptr + i));
 		target = get_num_charactor(num);
 		if (-1 == target) {
 			continue;
@@ -96,9 +96,22 @@ char *__recognise_image_num(char *ptr, int *len, int *out_num)
 		else {
 			*out_num = target;
 			*len = *len - get_num_digit(num) - 1;
-			return (ptr + get_num_digit(num) + 1);
+			return ptr + get_num_digit(num) + 1;
 		}
 	}
+	*out_num = -1;
+	*len = *len - i; 
+	return ptr + i;
+}
+
+char *recognise_image_num(char *ptr, int *len, int *out_num)
+{
+	if (*ptr == 0) {
+		*len = *len - 1;
+		*out_num = -1;
+		return ptr + 1;
+	}
+	return __recognise_image_num(ptr, len, out_num);
 }
 
 int calc_number_charactor(unsigned char *ptr, int len, unsigned char *num_charactor)
@@ -127,6 +140,51 @@ void print_charactor(unsigned char ptr[][5], int len)
 	}
 }
 
+void get_role_HP(void)
+{
+	struct t_bmp input = {};
+	struct t_bmp output = {};
+	int ret = 0;
+	RECT target_rc = {};
+	unsigned char nums_charactor[1000] = {};
+
+	/* Get the role's HP/ position*/
+	target_rc.left = 170;
+	target_rc.right = 250;
+	target_rc.top = 283;
+	target_rc.bottom = 291;
+
+	ret = load_picture(L"D://role_m.bmp", &input);
+	if (ret != ERR_NO_ERR) {
+		return;
+	}
+
+	ret = get_screen_rect(&input, target_rc, &output);
+	if (ret != ERR_NO_ERR) {
+		delete[] input.data;
+		return;
+	}
+	ret = convert_gray(&output, BINARY_WEIGHTED_MEAN);
+	ret = convert2blackwhite(&output, ONLY_BLACK);
+	calc_number_charactor(output.data, output.len, nums_charactor);
+
+	char *ptr = NULL;
+	int recognise_num = 0;
+	int len = output.len / (8 * 4);
+	ptr = (char *)nums_charactor;
+
+	do {
+		ptr = recognise_image_num(ptr, &len, &recognise_num);
+		if (recognise_num == -1) {
+			continue;
+		}
+		printf("recognise number: %d\n", recognise_num);
+	} while (len > 0 && *ptr != ' ');
+
+	delete[] input.data;
+	delete[] output.data;
+}
+
 void unit_test_show_nums_charactor(void)
 {
 	unsigned char nums_charactor[10][5];
@@ -151,13 +209,15 @@ void unit_test_recognise_image_num(void)
 {
 	const char *num_char = "28162226281433332233522482633345333415325333543335";
 	char *ptr = NULL;
-
-	int len = strlen(num_char);
 	int recognise_num = 0;
+	int len = strlen(num_char);
 	ptr = (char *)num_char;
 
 	do {
-		ptr = __recognise_image_num(ptr, &len, &recognise_num);
+		ptr = recognise_image_num(ptr, &len, &recognise_num);
+		if (recognise_num == -1) {
+			continue;
+		}
 		printf("recognise number: %d\n", recognise_num);
 	} while (len > 0 && *ptr != ' ');
 }
@@ -185,7 +245,6 @@ void unit_test_calc_image_charactor(void)
 	}
 }
 
-
 #define __OWN_MAIN__ 1
 #ifdef __OWN_MAIN__
 
@@ -194,7 +253,8 @@ int main()
 	//show_nums_charactor();
 	//unit_test_get_num_charctor_by_num();
 	//unit_test_calc_image_charactor();
-	unit_test_recognise_image_num();
+	//unit_test_recognise_image_num();
+	get_role_HP();
 
 	return 0;
 }

@@ -54,7 +54,7 @@ unsigned char get_average_color(unsigned char *gray, int x, int y, int w, int h)
 
 static unsigned char get_color(unsigned char *gray, int x, int y, int w, int h)
 {
-	TRACE(T_INFO, "value %d", *(gray + (y * w + x) * 4));
+	//TRACE(T_INFO, "value %d", *(gray + (y * w + x) * 4));
 	return *(gray + (y * w + x) * 4);
 }
 
@@ -69,7 +69,7 @@ int convert_gray(struct t_bmp *in_ptr, int mode)
 		TRACE(T_ERROR, "in_ptr == NULL");	
 		return ERR_COMMON_NULL_ERROR;
 	}
-	TRACE(T_INFO, "Do the gray convert process");	
+	//TRACE(T_INFO, "Do the gray convert process");	
 	for (ptr = in_ptr->data; i < in_ptr->len; i += 4) {
 		new_color = get_gray((ptr + i), mode);
 		ptr[i + 0] = new_color;
@@ -79,12 +79,6 @@ int convert_gray(struct t_bmp *in_ptr, int mode)
 	}
 	return ERR_NO_ERR;
 }
-
-enum {
-	ONLY_BLACK = 1,
-	ONLY_WHITE,
-	BOTH_BLACKWHITE,
-};
 
 int convert2blackwhite(struct t_bmp *in_ptr, int mode)
 {
