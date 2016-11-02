@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include<windows.h>
 #include <wchar.h>
+#include <math.h>
 
 #include "init.h"
 #include "debug.h"
@@ -26,8 +27,6 @@ int num_charactor[10] = {
 	43335	/* 9 */	
 };
 
-#include <math.h>
-
 int get_num_digit(int num)
 {
 	int i;
@@ -35,36 +34,6 @@ int get_num_digit(int num)
 	for (i = 0; i <= 10; i ++) {
 		num /= 10;
 		if (num == 0) {
-			return i;
-		}
-	}
-	return -1;
-}
-
-void __get_num_charactor_by_num(int *num, int in_len, char target, int bit,
-				int *output, int *out_len)
-{
-	int i;
-	int j = 0;
-	int n = 0; //(int)pow((long double)10, bit);
-
-	for (i = 0; i < in_len; i ++) {
-		n = get_num_digit(num[i]);
-		n = (int) pow((long double)10, n - bit);
-		if ((num[i] / n % 10) == target) {
-			*(output + j) = num[i];
-			j ++;
-		}
-	}
-	*out_len = j;
-}
-
-int get_num_by_charactor(int charactor)
-{
-	int i;
-
-	for (i = 0; i < 10; i ++) {
-		if (charactor == num_charactor[i]) {
 			return i;
 		}
 	}
@@ -79,19 +48,6 @@ void print_num(int *ptr, int len)
 		printf("%d ", *(ptr + i));
 	}
 	printf("\n");
-}
-
-void unit_test_get_num_charctor_by_num(void)
-{
-	int output[10] = {};
-	int out_len;
-	int i;
-
-	__get_num_charactor_by_num(num_charactor, 10, 6, 0,
-				output, &out_len);
-	for (i = 0; i < out_len; i ++) {
-		print_num(output, 5);
-	}
 }
 
 void __calc_image_charactor(struct t_bmp *input, int *output)
@@ -131,22 +87,39 @@ void unit_test_calc_image_charactor(void)
 	}
 }
 
-
-char * __recognise_image_num(char *ptr, int *len, int *out_num)
+int get_num(int num, int new_bit)
 {
-	int output[10] = {};
-	int out_len;
-	int i;
+	return num * 10 + new_bit;
+}
 
-	__get_num_charactor_by_num(num_charactor, 10, *ptr - 48, 0,
-				output, &out_len);
-	for (i = 1; i < 5; i ++) {
-		__get_num_charactor_by_num(output, out_len, *(ptr + i) - 48, i,
-				output, &out_len);
-		if (out_len == 1) {
-			*out_num = get_num_by_charactor(output[0]);
-			*len = *len - get_num_digit(output[0]) - 1;
-			return (ptr + get_num_digit(output[0]) + 1);
+int get_num_charactor(int num)
+{
+	int i = 0;
+
+	for (; i < 10; i ++) {
+		if (num_charactor[i] == num) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+char *__recognise_image_num(char *ptr, int *len, int *out_num)
+{
+	int i;
+	int num = 0;
+	int target = 0;
+
+	for (i = 0; i < *len; i ++) {
+		num = get_num(num, (*(ptr + i) - 0x30));
+		target = get_num_charactor(num);
+		if (-1 == target) {
+			continue;
+		}
+		else {
+			*out_num = target;
+			*len = *len - get_num_digit(num) - 1;
+			return (ptr + get_num_digit(num) + 1);
 		}
 	}
 }
@@ -217,7 +190,6 @@ void show_nums_charactor(void)
 	}
 	print_charactor(nums_charactor, 10);
 }
-
 
 #define __OWN_MAIN__ 1
 #ifdef __OWN_MAIN__
