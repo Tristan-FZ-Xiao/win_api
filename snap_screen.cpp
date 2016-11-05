@@ -80,7 +80,7 @@ int convert_gray(struct t_bmp *in_ptr, int mode)
 	return ERR_NO_ERR;
 }
 
-int convert2blackwhite(struct t_bmp *in_ptr, int mode)
+int convert2blackwhite(struct t_bmp *in_ptr, int mode, int thresh)
 {
 	int h = in_ptr->bih.biHeight;
 	int w = in_ptr->bih.biWidth;
@@ -89,11 +89,15 @@ int convert2blackwhite(struct t_bmp *in_ptr, int mode)
 	unsigned char *ptr = new unsigned char[in_ptr->len];
 	int flag = 0;
 
+	if (0 == thresh) {
+		thresh = SW;
+	}
+
 	for (i = 0; i < h; i ++) {
 		for (j = 0; j < w; j ++) {
 			if (mode == ONLY_BLACK ||
 				mode == ONLY_WHITE) {
-				if (get_color(in_ptr->data, j, i, w, h) > SW) {
+				if (get_color(in_ptr->data, j, i, w, h) > thresh) {
 					flag = 1;			
 				}
 				else {
@@ -101,7 +105,7 @@ int convert2blackwhite(struct t_bmp *in_ptr, int mode)
 				}
 			}
 			else {
-				if (get_average_color(in_ptr->data, j, i, w, h) > SW) {
+				if (get_average_color(in_ptr->data, j, i, w, h) > thresh) {
 					flag = 1;
 				}
 				else {
@@ -305,7 +309,7 @@ int get_screen(HWND hwnd, wchar_t *path, struct t_bmp *out_ptr)
 
 	/* do the convertion */
 	//ret = convert_gray(out_ptr, BINARY_MEAN);
-	//ret = convert2blackwhite(out_ptr, BOTH_BLACKWHITE);
+	//ret = convert2blackwhite(out_ptr, BOTH_BLACKWHITE, 0);
 
 	if (ret != ERR_NO_ERR) {
 		TRACE(T_ERROR, "binary process failed");
@@ -431,7 +435,7 @@ void unit_test_get_info_from_dnf(void)
 		return;
 	}
 	ret = convert_gray(&output, BINARY_WEIGHTED_MEAN);
-	ret = convert2blackwhite(&output, ONLY_BLACK);
+	ret = convert2blackwhite(&output, ONLY_BLACK, 0);
 	ret = save_picture(L"D://role_level.bmp", &output);
 
 	/* This should be the rect of gold */
@@ -446,7 +450,7 @@ void unit_test_get_info_from_dnf(void)
 		return;
 	}
 	ret = convert_gray(&output, BINARY_WEIGHTED_MEAN);
-	ret = convert2blackwhite(&output, ONLY_BLACK);
+	ret = convert2blackwhite(&output, ONLY_BLACK, 0);
 	ret = save_picture(L"D://gold.bmp", &output);
 
 	delete[] output.data;

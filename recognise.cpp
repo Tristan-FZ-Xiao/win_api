@@ -71,25 +71,25 @@ int num_charactor[11] = {
 
 /* The charactors of the graph that we need to go for current task. */
 POINT task_black_char[8] = {
-	{3,	13},
-	{7,	13},
-	{0,	10},
-	{10,	10},
+	{4,	0},
+	{6,	0},
 	{0,	7},
 	{10,	7},
-	{4,	0},
-	{6,	0}
+	{0,	10},
+	{10,	10},
+	{3,	13},
+	{7,	13}
 };
 
 POINT task_white_char[8] = {
-	{2,	13},
-	{8,	13},
-	{-1,	10},
-	{11,	10},
+	{3,	0},
+	{7,	0},
 	{-1,	7},
 	{11,	7},
-	{3,	0},
-	{7,	0}
+	{-1,	10},
+	{11,	10},
+	{2,	13},
+	{8,	13}
 };
 
 /* The charactors of that role graph. */
@@ -117,6 +117,105 @@ POINT role_white_char[10] = {
 	{12,	9},
 	{-1,	11},
 	{12,	11}
+};
+
+/* The charactors of little map graph. */
+POINT task_map_black_char[9] = {
+	{1,	0},
+	{1,	1},
+	{5,	0},
+	{10,	0},
+	{15,	0},
+	{0,	1},
+	{0,	5},
+	{0,	10},
+	{0,	15}
+};
+
+POINT task_map_white_char[9] = {
+	{0,	0},
+	{2,	1},
+	{7,	1},
+	{12,	1},
+	{17,	1},
+	{1,	2},
+	{1,	7},
+	{1,	12},
+	{1,	17}
+};
+
+/* The charactors of the role graph which in little map. */
+POINT map_role_black_char[7] = {
+	{2,	2},
+	{4,	2},
+	{5,	3},
+	{1,	4},
+	{0,	6},
+	{5,	7},
+	{2,	10}
+};
+
+POINT map_role_white_char[7] = {
+	{0,	0},
+	{2,	3},
+	{3,	2},
+	{4,	3},
+	{2,	9},
+	{3,	9},
+	{3,	10}
+};
+
+/* The charactors of the next step graph which in little map. */
+POINT map_next_black_char[] = {
+	{0,	0},
+	{3,	2},
+	{3,	3},
+	{3,	6},
+	{4,	7},
+	{1,	8},
+	{2,	9},
+	{3,	10}
+};
+
+POINT map_next_white_char[] = {
+	{3,	0},
+	{3,	1},
+	{3,	4},
+	{3,	5},
+	{0,	8},
+	{1,	9},
+	{2,	10},
+	{3,	11},
+	{4,	10},
+	{4,	7}
+};
+
+/* The charactors of the boss graph which in little map. */
+POINT map_boss_black_char[] = {
+	{0,	0},
+	{5,	0},
+	{4,	1},
+	{3,	2},
+	{8,	0},
+	{9,	1},
+	{10,	2},
+	{5,	4},
+	{8,	4},
+	{1,	8},
+	{12,	8}
+};
+
+POINT map_boss_white_char[] = {
+	{6,	0},
+	{7,	0},
+	{5,	1},
+	{4,	2},
+	{3,	3},
+	{8,	1},
+	{9,	2},
+	{10,	3},
+	{1,	6},
+	{12,	6}
 };
 
 int get_num_digit(int num)
@@ -399,7 +498,7 @@ int unit_test_get_role_info(void)
 		return 0;
 	}
 	ret = convert_gray(&input, BINARY_WEIGHTED_MEAN);
-	ret = convert2blackwhite(&input, ONLY_BLACK);
+	ret = convert2blackwhite(&input, ONLY_BLACK, 0);
 	ret = get_role_hp_mp_level(&input, &role_info);
 	delete input.data;
 
@@ -409,7 +508,7 @@ int unit_test_get_role_info(void)
 	}
 
 	ret = convert_gray(&input, BINARY_WEIGHTED_MEAN);
-	ret = convert2blackwhite(&input, ONLY_BLACK);
+	ret = convert2blackwhite(&input, ONLY_BLACK, 0);
 	ret = get_role_gold(&input, &role_info);
 
 	if (ret != ERR_NO_ERR) {
@@ -430,7 +529,7 @@ int unit_test_get_role_info(void)
 
 int get_target_position(struct t_bmp *input, POINT *charactor_black,
 			int black_len, POINT *charactor_white, int white_len,
-			int mode, POINT *target)
+			int mode, POINT *target, int target_center)
 {
 	int i, j;
 	int x, y;
@@ -439,6 +538,8 @@ int get_target_position(struct t_bmp *input, POINT *charactor_black,
 	int h = input->bih.biHeight;
 
 	//TODO: need to achieve the FIND_ALL mode
+	//TODO: need to do the vague
+
 	if (NULL == input && NULL == input->data) {
 		return NULL;
 	}
@@ -449,7 +550,8 @@ int get_target_position(struct t_bmp *input, POINT *charactor_black,
 			for (j = 0; j < white_len; j ++) {
 				d_x = (charactor_white + j)->x;
 				d_y = (charactor_white + j)->y;
-				if (x + d_x <= 0 || y + d_y <= 0) {
+				if (x + d_x <= 0 || y + d_y <= 0 || x + d_x >= w ||
+					y + d_y >= h) {
 					break;
 				}
 				if (*(input->data + (x + d_x + (y + d_y) * w) * 4)
@@ -466,7 +568,8 @@ int get_target_position(struct t_bmp *input, POINT *charactor_black,
 			for (j = 0; j < black_len; j ++) {
 				d_x = (charactor_black + j)->x;
 				d_y = (charactor_black + j)->y;
-				if (x + d_x <= 0 || y + d_y <= 0) {
+				if (x + d_x <= 0 || y + d_y <= 0 || x + d_x >= w ||
+					y + d_y >= h) {
 					break;
 				}
 				if (*(input->data + (x + d_x + (y + d_y) * w) * 4)
@@ -479,15 +582,21 @@ int get_target_position(struct t_bmp *input, POINT *charactor_black,
 			}
 		}
 		if (j == black_len || j == white_len) {
-			target->x = x;
-			target->y = h - y;
+			if (target_center) {
+				target->x = x + (charactor_white + white_len - 1)->x / 2;
+				target->y = h - y - (charactor_white + white_len - 1)->y / 2;
+			}
+			else {
+				target->x = x;
+				target->y = h - y;
+			}
 			return ERR_NO_ERR;
 		}
 	}
 	return ERR_TARGET_NOT_FOUND;
 }
 
-int unit_test_get_map_info(void)
+int unit_test_get_big_map_info(void)
 {
 	struct t_bmp input = {};
 	int ret = 0;
@@ -498,9 +607,9 @@ int unit_test_get_map_info(void)
 		return 0;
 	}
 	ret = convert_gray(&input, BINARY_WEIGHTED_MEAN);
-	ret = convert2blackwhite(&input, ONLY_BLACK);
+	ret = convert2blackwhite(&input, ONLY_BLACK, 0);
 	ret = get_target_position(&input, task_black_char,
-			8, task_white_char, 8, FIND_FIRST, &p);
+			8, task_white_char, 8, FIND_FIRST, &p, true);
 	if (ERR_NO_ERR == ret) {
 		TRACE(T_INFO, "The target position (%d, %d)\n", p.x, p.y);
 	}
@@ -509,7 +618,7 @@ int unit_test_get_map_info(void)
 	}
 
 	ret = get_target_position(&input, role_black_char,
-			10, role_white_char, 10, FIND_FIRST, &p);
+			10, role_white_char, 10, FIND_FIRST, &p, true);
 	if (ERR_NO_ERR == ret) {
 		TRACE(T_INFO, "The role position (%d, %d)\n", p.x, p.y);
 	}
@@ -523,6 +632,132 @@ int unit_test_get_map_info(void)
 	return 0;
 }
 
+int unit_test_get_little_map_info(void)
+{
+	struct t_bmp input = {};
+	struct t_bmp output = {};
+	int ret = 0;
+	POINT p = {};
+
+	ret = load_picture(L"D://gate_2.bmp", &input);
+	if (ret != ERR_NO_ERR) {
+		return 0;
+	}
+
+	ret = convert_gray(&input, BINARY_WEIGHTED_MEAN);
+	ret = convert2blackwhite(&input, ONLY_BLACK, 80);
+
+	ret = get_target_position(&input, task_map_black_char,
+		sizeof(task_map_black_char)/sizeof(POINT),
+		task_map_white_char, sizeof(task_map_black_char)/sizeof(POINT),
+		FIND_FIRST, &p, false);
+	if (ERR_NO_ERR == ret) {
+		RECT map_rc = {};
+
+		map_rc.top = 26;
+		map_rc.bottom = p.y;
+		map_rc.left = p.x;
+		map_rc.right = input.bih.biWidth - 4;
+
+		TRACE(T_INFO, "The target position (%d, %d)\n", p.x, p.y);
+		ret = get_screen_rect(&input, map_rc, &output);
+		save_picture(L"D://little_map.bmp", &output);
+	}
+	else {
+		TRACE(T_INFO, "Could not find the target\n");
+	}
+	delete input.data;
+	delete output.data;
+	return 0;
+}
+
+int unit_test_get_map_role_info(void)
+{
+	struct t_bmp input = {};
+	int ret = 0;
+	POINT p = {};
+
+	ret = load_picture(L"D://gate_2.bmp", &input);
+	if (ret != ERR_NO_ERR) {
+		return 0;
+	}
+
+	ret = convert_gray(&input, BINARY_WEIGHTED_MEAN);
+	ret = convert2blackwhite(&input, ONLY_BLACK, 80);
+
+	ret = get_target_position(&input, map_role_black_char,
+		sizeof(map_role_black_char)/sizeof(POINT),
+		map_role_white_char, sizeof(map_role_black_char)/sizeof(POINT),
+		FIND_FIRST, &p, true);
+	if (ERR_NO_ERR == ret) {
+		TRACE(T_INFO, "The target position (%d, %d)\n", p.x, p.y);
+	}
+	else {
+		TRACE(T_INFO, "Could not find the target\n");
+	}
+	save_picture(L"D://map_role.bmp", &input);
+	delete input.data;
+	return 0;
+}
+
+int unit_test_get_map_next_info(void)
+{
+	struct t_bmp input = {};
+	int ret = 0;
+	POINT p = {};
+
+	ret = load_picture(L"D://gate_2.bmp", &input);
+	if (ret != ERR_NO_ERR) {
+		return 0;
+	}
+
+	ret = convert_gray(&input, BINARY_WEIGHTED_MEAN);
+	ret = convert2blackwhite(&input, ONLY_BLACK, 80);
+
+	ret = get_target_position(&input, map_next_black_char,
+		sizeof(map_next_black_char)/sizeof(POINT),
+		map_next_white_char, sizeof(map_next_black_char)/sizeof(POINT),
+		FIND_FIRST, &p, true);
+	if (ERR_NO_ERR == ret) {
+		TRACE(T_INFO, "The target position (%d, %d)\n", p.x, p.y);
+	}
+	else {
+		TRACE(T_INFO, "Could not find the target\n");
+	}
+	save_picture(L"D://map_role.bmp", &input);
+	delete input.data;
+	return 0;
+}
+
+int unit_test_get_map_boss_info(void)
+{
+	struct t_bmp input = {};
+	int ret = 0;
+	POINT p = {};
+
+	ret = load_picture(L"D://gate_2.bmp", &input);
+	if (ret != ERR_NO_ERR) {
+		return 0;
+	}
+
+	ret = convert_gray(&input, BINARY_WEIGHTED_MEAN);
+	ret = convert2blackwhite(&input, ONLY_BLACK, 80);
+
+	ret = get_target_position(&input, map_boss_black_char,
+		sizeof(map_boss_black_char)/sizeof(POINT),
+		map_boss_white_char, sizeof(map_boss_white_char)/sizeof(POINT),
+		FIND_FIRST, &p, true);
+	if (ERR_NO_ERR == ret) {
+		TRACE(T_INFO, "The target position (%d, %d)\n", p.x, p.y);
+	}
+	else {
+		TRACE(T_INFO, "Could not find the target\n");
+	}
+	save_picture(L"D://map_role.bmp", &input);
+	delete input.data;
+	return 0;
+}
+
 #define __OWN_MAIN__ 1
 #ifdef __OWN_MAIN__
 
@@ -533,7 +768,12 @@ int main()
 	//unit_test_calc_image_charactor();
 	//unit_test_recognise_image_num();
 	//unit_test_get_role_info();
-	unit_test_get_map_info();
+	//unit_test_get_big_map_info();
+	//unit_test_get_little_map_info();
+	//unit_test_get_map_role_info();
+	//unit_test_get_map_next_info();
+	unit_test_get_map_boss_info();
+
 	return 0;
 }
 #endif /* __OWN_MAIN__ */
