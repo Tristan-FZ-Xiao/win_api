@@ -417,6 +417,7 @@ void unit_test_get_info_from_dnf(void)
 		return;
 	}
 	ret = get_screen(auto_mob.mob_hwnd, L"D://game.bmp", &input);
+	ret = save_picture(L"D://map.bmp", &input);
 
 	/* This should be the rect of role's level: likes Lv 14 */
 	target_rc.left	= 45;
@@ -457,8 +458,8 @@ void unit_test_get_info_from_dnf(void)
 
 int main()
 {
-	unit_test_get_screen_rect();
-	//unit_test_get_info_from_dnf();
+	//unit_test_get_screen_rect();
+	unit_test_get_info_from_dnf();
 	//unit_test_get_screen();
 }
 #endif /* __OWN_MAIN__ */

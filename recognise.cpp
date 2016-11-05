@@ -19,6 +19,30 @@ struct mp_info {
 	int mp;
 };
 
+enum {
+	WHITE_KEY_VALUE = 0xff,
+	BLACK_KEY_VALUE = 0x0,
+};
+
+enum {
+	FIND_FIRST = 1,
+	FIND_ALL,
+};
+
+enum {
+	NUM_0 = 0,
+	NUM_1,
+	NUM_2,
+	NUM_3,
+	NUM_4,
+	NUM_5,
+	NUM_6,
+	NUM_7,
+	NUM_8,
+	NUM_9,
+	NUM_M,	/* / */
+};
+
 struct role_status {
 	struct hp_info hp;
 	struct mp_info mp;
@@ -27,6 +51,7 @@ struct role_status {
 } role_info;
 /*	What we need in the module: do some basic recognition likes:
  *	1. Number;
+ *	2. map info;
  */
 /*	The charactor of 0 - 9
  */
@@ -44,18 +69,54 @@ int num_charactor[11] = {
 	2222	/* / */
 };
 
-enum {
-	NUM_0 = 0,
-	NUM_1,
-	NUM_2,
-	NUM_3,
-	NUM_4,
-	NUM_5,
-	NUM_6,
-	NUM_7,
-	NUM_8,
-	NUM_9,
-	NUM_M,	/* / */
+/* The charactors of the graph that we need to go for current task. */
+POINT task_black_char[8] = {
+	{3,	13},
+	{7,	13},
+	{0,	10},
+	{10,	10},
+	{0,	7},
+	{10,	7},
+	{4,	0},
+	{6,	0}
+};
+
+POINT task_white_char[8] = {
+	{2,	13},
+	{8,	13},
+	{-1,	10},
+	{11,	10},
+	{-1,	7},
+	{11,	7},
+	{3,	0},
+	{7,	0}
+};
+
+/* The charactors of that role graph. */
+POINT role_black_char[10] = {
+	{5,	0},
+	{6,	0},
+	{3,	3},
+	{8,	3},
+	{2,	5},
+	{9,	5},
+	{0,	9},
+	{11,	9},
+	{0,	11},
+	{11,	11}
+};
+
+POINT role_white_char[10] = {
+	{4,	0},
+	{7,	0},
+	{2,	3},
+	{9,	3},
+	{1,	5},
+	{10,	5},
+	{-1,	9},
+	{12,	9},
+	{-1,	11},
+	{12,	11}
 };
 
 int get_num_digit(int num)
@@ -328,15 +389,8 @@ void unit_test_calc_image_charactor(void)
 	}
 }
 
-#define __OWN_MAIN__ 1
-#ifdef __OWN_MAIN__
-
-int main()
+int unit_test_get_role_info(void)
 {
-	//show_nums_charactor();
-	//unit_test_get_num_charctor_by_num();
-	//unit_test_calc_image_charactor();
-	//unit_test_recognise_image_num();
 	struct t_bmp input = {};
 	int ret = 0;
 
@@ -365,6 +419,121 @@ int main()
 	//save_picture(L"D://tmp_role_m.bmp", &input);
 	delete input.data;
 
+	return 0;
+}
+
+/*
+ *	input:		should be binary-handle(only black and white).
+ *	charactor:	the charactor of things that you want to recognise.
+ *	mode:		support 1. find first one, 2. find all.
+ */
+
+int get_target_position(struct t_bmp *input, POINT *charactor_black,
+			int black_len, POINT *charactor_white, int white_len,
+			int mode, POINT *target)
+{
+	int i, j;
+	int x, y;
+	int d_x, d_y;		//delta_x and delta_y
+	int w = input->bih.biWidth;
+	int h = input->bih.biHeight;
+
+	//TODO: need to achieve the FIND_ALL mode
+	if (NULL == input && NULL == input->data) {
+		return NULL;
+	}
+	for (i = 0; i < (int)input->len; i ++) {
+		y = (i / 4) / w;
+		x = (i / 4) % w;
+		if (white_len > 0) {
+			for (j = 0; j < white_len; j ++) {
+				d_x = (charactor_white + j)->x;
+				d_y = (charactor_white + j)->y;
+				if (x + d_x <= 0 || y + d_y <= 0) {
+					break;
+				}
+				if (*(input->data + (x + d_x + (y + d_y) * w) * 4)
+					!= WHITE_KEY_VALUE) {
+					break;
+				}
+			}
+			if (j != white_len) {
+				continue;
+			}
+		}
+
+		if (black_len > 0) {
+			for (j = 0; j < black_len; j ++) {
+				d_x = (charactor_black + j)->x;
+				d_y = (charactor_black + j)->y;
+				if (x + d_x <= 0 || y + d_y <= 0) {
+					break;
+				}
+				if (*(input->data + (x + d_x + (y + d_y) * w) * 4)
+					!= BLACK_KEY_VALUE) {
+					break;
+				}
+			}
+			if (j != black_len) {
+				continue;
+			}
+		}
+		if (j == black_len || j == white_len) {
+			target->x = x;
+			target->y = h - y;
+			return ERR_NO_ERR;
+		}
+	}
+	return ERR_TARGET_NOT_FOUND;
+}
+
+int unit_test_get_map_info(void)
+{
+	struct t_bmp input = {};
+	int ret = 0;
+	POINT p = {};
+
+	ret = load_picture(L"D://map_1.bmp", &input);
+	if (ret != ERR_NO_ERR) {
+		return 0;
+	}
+	ret = convert_gray(&input, BINARY_WEIGHTED_MEAN);
+	ret = convert2blackwhite(&input, ONLY_BLACK);
+	ret = get_target_position(&input, task_black_char,
+			8, task_white_char, 8, FIND_FIRST, &p);
+	if (ERR_NO_ERR == ret) {
+		TRACE(T_INFO, "The target position (%d, %d)\n", p.x, p.y);
+	}
+	else {
+		TRACE(T_INFO, "Could not find the target\n");
+	}
+
+	ret = get_target_position(&input, role_black_char,
+			10, role_white_char, 10, FIND_FIRST, &p);
+	if (ERR_NO_ERR == ret) {
+		TRACE(T_INFO, "The role position (%d, %d)\n", p.x, p.y);
+	}
+	else {
+		TRACE(T_INFO, "Could not find the target\n");
+	}
+
+	save_picture(L"D://tmp_map_info.bmp", &input);
+	delete input.data;
+
+	return 0;
+}
+
+#define __OWN_MAIN__ 1
+#ifdef __OWN_MAIN__
+
+int main()
+{
+	//show_nums_charactor();
+	//unit_test_get_num_charctor_by_num();
+	//unit_test_calc_image_charactor();
+	//unit_test_recognise_image_num();
+	//unit_test_get_role_info();
+	unit_test_get_map_info();
 	return 0;
 }
 #endif /* __OWN_MAIN__ */

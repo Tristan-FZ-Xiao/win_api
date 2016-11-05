@@ -24,6 +24,7 @@ enum {
 	ERR_READ_FILE_FAILED,
 	ERR_DO_BINARY_CONVERT_FAILED,
 	ERR_SAVE_FILE_FAILED,
+	ERR_TARGET_NOT_FOUND,
 };
 
 void bt_inc_msglevel(void);
