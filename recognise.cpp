@@ -9,6 +9,8 @@
 #include "snap_screen.h"
 #include "recognise.h"
 
+#define GOODS_NUM	20
+
 struct role_status {
 	struct hp_info hp;
 	struct mp_info mp;
@@ -19,6 +21,7 @@ struct role_status {
 struct map_status {
 	POINT	bmap_next_target;	/* The position in the big map(N) which after task, need to go to do something. */
 	POINT	bmap_role;		/* Role position in the big map(N) */
+	POINT	role;			/* Role position in Normal picture */
 	RECT	little_map;
 	POINT	lmap_role;		/* Role position in the little map(right-top) */
 	POINT	lmap_next_target;	/* The position in the littele map which need to go in the task. */
@@ -212,7 +215,15 @@ POINT goods_black_char[] = {
 
 POINT goods_white_char[] = {
 	{5,	0},
+	{6,	0},
+	{7,	0},
+	{8,	0},
+	{9,	0},
 	{10,	0},
+	{11,	0},
+	{12,	0},
+	{13,	0},
+	{14,	0},
 	{15,	0},
 	{5,	22},
 	{10,	22},
@@ -300,7 +311,7 @@ static void __calc_image_charactor(struct t_bmp *input, int *output)
 
 void calc_image_charactor(struct t_bmp *input, int *output)
 {
-	if (input && output)
+	if (input)
 		__calc_image_charactor(input, output);
 	else {
 		TRACE(T_ERROR, "input or output NULL");
@@ -316,7 +327,7 @@ static int get_num_charactor(int num)
 {
 	int i = 0;
 
-	for (; i < sizeof(num_charactor); i ++) {
+	for (; i < sizeof(num_charactor)/sizeof(int); i ++) {
 		if (num_charactor[i] == num) {
 			return i;
 		}
@@ -573,7 +584,15 @@ int get_target_position(struct t_bmp *input, POINT *charactor_black,
 
 void map_info_output(struct map_status *map_info)
 {
+	int i;
 	TRACE(T_INFO, "============== MAP INFO ==============\n");
+	TRACE(T_INFO, "role:\t\t\t(%d,\t%d)\n", map_info->role.x, map_info->role.y);
+	for (i = 0; i < GOODS_NUM; i ++) {
+		if (map_info->goods && (map_info->goods + i)->x == 0 && (map_info->goods + i)->y == 0) {
+			break;
+		}
+		TRACE(T_INFO, "goods:\t\t\t(%d,\t%d)\n", (map_info->goods + i)->x, (map_info->goods + i)->y);
+	}
 	TRACE(T_INFO, "bmap_role:\t\t\t(%d,\t%d)\n", map_info->bmap_role.x, map_info->bmap_role.y);
 	TRACE(T_INFO, "bmap_next_target:\t\t(%d,\t%d)\n", map_info->bmap_next_target.x, map_info->bmap_next_target.y);
 	TRACE(T_INFO, "little_map:\t\t(%d,\t%d,\t%d,\t%d)\n", map_info->little_map.top, map_info->little_map.bottom,
@@ -629,13 +648,12 @@ int get_littlemap_info(struct t_bmp *input, struct map_status *map_info, int is_
 	if (ERR_NO_ERR == ret) {
 		struct t_bmp output = {};
 
-		TRACE(T_INFO, "The target position (%d, %d)\n", p.x, p.y);
+		//TRACE(T_INFO, "The target position (%d, %d)\n", p.x, p.y);
 		map_info->little_map.top = 26;
 		map_info->little_map.bottom = p.y;
 		map_info->little_map.left = p.x;
 		map_info->little_map.right = input->bih.biWidth - 4;
 		ret = get_screen_rect(input, map_info->little_map, &output);
-		save_picture(L"D://little_map.bmp", &output);
 		if (ERR_NO_ERR != ret) {
 			return ret;
 		}
@@ -660,6 +678,33 @@ int get_littlemap_info(struct t_bmp *input, struct map_status *map_info, int is_
 		TRACE(T_INFO, "Could not find the target\n");
 		return ret;
 	}
+}
+
+int get_normal_info(struct t_bmp *input, struct map_status *map_info, int is_convert)
+{
+	POINT p = {};
+	int ret = ERR_NO_ERR;
+	int target_num = GOODS_NUM;
+
+	if (!is_convert) {
+		ret = convert_gray(input, BINARY_WEIGHTED_MEAN);
+		ret = convert2blackwhite(input, ONLY_BLACK, 0);
+	}
+	if (map_info->goods == NULL) {
+		map_info->goods = new POINT[GOODS_NUM];
+	}
+	memset(map_info->goods, 0, sizeof(POINT) * GOODS_NUM);
+
+	ret = get_target_position(input, goods_black_char,
+		sizeof(goods_black_char)/sizeof(POINT),
+		goods_white_char, sizeof(goods_white_char)/sizeof(POINT),
+		FIND_ALL, map_info->goods, &target_num, false);
+	target_num = 1;
+	ret = get_target_position(input, role_black_char,
+		sizeof(role_black_char)/sizeof(POINT),
+		role_white_char, sizeof(role_white_char)/sizeof(POINT),
+		FIND_ALL, &map_info->role, &target_num, false);
+	return ERR_NO_ERR;
 }
 
 static void unit_test_show_nums_charactor(void)
@@ -731,9 +776,11 @@ static int unit_test_get_role_info(void)
 	if (ret != ERR_NO_ERR) {
 		return 0;
 	}
+	memset(&role_info, 0, sizeof(role_info));
 	ret = convert_gray(&input, BINARY_WEIGHTED_MEAN);
 	ret = convert2blackwhite(&input, ONLY_BLACK, 0);
 	ret = get_role_hp_mp_level(&input, &role_info);
+	save_picture(L"D://tmp_role_m.bmp", &input);
 	delete input.data;
 
 	ret = load_picture(L"D://role_i.bmp", &input);
@@ -749,7 +796,7 @@ static int unit_test_get_role_info(void)
 		return ret;
 	}
 
-	//save_picture(L"D://tmp_role_m.bmp", &input);
+	save_picture(L"D://tmp_role_i.bmp", &input);
 	delete input.data;
 
 	return 0;
@@ -789,6 +836,63 @@ static int unit_test_get_little_map_info(void)
 	ret = get_littlemap_info(&input, &map_info, true);
 
 	delete input.data;
+	return 0;
+}
+
+static int unit_test_get_normal_info(void)
+{
+	struct t_bmp input = {};
+	int ret = 0;
+
+	ret = load_picture(L"D://things.bmp", &input);
+	if (ret != ERR_NO_ERR) {
+		return 0;
+	}
+
+	ret = convert_gray(&input, BINARY_WEIGHTED_MEAN);
+	ret = convert2blackwhite(&input, ONLY_BLACK, 0);
+	ret = get_normal_info(&input, &map_info, false);
+
+	delete input.data;
+	return 0;
+}
+
+static int unit_test_loop(void)
+{
+	struct t_bmp input = {};
+	int ret = 0;
+	int flag = 1;
+	RECT target_rc = {};
+
+	ret = auto_mob_init();
+	auto_mob.mob_hwnd = FindWindow(NULL, auto_mob.mob_name);
+	if (!auto_mob.mob_hwnd) {
+		return ERR_HWND_NOT_FOUND;
+	}
+
+	while (1) {
+		ret = get_screen(auto_mob.mob_hwnd, NULL, &input);
+		if (ret != ERR_NO_ERR) {
+			return 0;
+		}
+		if (flag) {
+			ret = convert_gray(&input, BINARY_WEIGHTED_MEAN);
+			ret = convert2blackwhite(&input, ONLY_BLACK, 0);
+			memset(&role_info, 0, sizeof(role_info));
+			ret = get_role_hp_mp_level(&input, &role_info);
+			ret = get_role_gold(&input, &role_info);
+			ret = get_normal_info(&input, &map_info, true);
+			ret = get_bigmap_info(&input, &map_info, true);
+		}
+		else {
+			ret = get_littlemap_info(&input, &map_info, false);
+		}
+		flag ^= 1;
+
+		delete input.data;
+		map_info_output(&map_info);
+		Sleep(1000);
+	}
 	return 0;
 }
 
@@ -959,19 +1063,17 @@ int main()
 	//unit_test_get_num_charctor_by_num();
 	//unit_test_calc_image_charactor();
 	//unit_test_recognise_image_num();
-	//unit_test_get_role_info();
-	//unit_test_get_little_map_info();
 	//unit_test_get_map_role_info();
 	//unit_test_get_map_next_info();
 	//unit_test_get_map_boss_info();
-	/*
-	unit_test_get_big_map_info();
-	unit_test_get_little_map_info();
-	map_info_output(&map_info);
-	*/
 	//unit_test_get_goods_position();
-	unit_test_role_in_battle_info();
-
+	//unit_test_role_in_battle_info();
+	//unit_test_get_role_info();
+	//unit_test_get_big_map_info();
+	//unit_test_get_little_map_info();
+	//unit_test_get_normal_info();
+	//map_info_output(&map_info);
+	unit_test_loop();
 	return 0;
 }
 #endif /* __OWN_MAIN__ */

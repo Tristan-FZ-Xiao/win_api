@@ -315,8 +315,10 @@ int get_screen(HWND hwnd, wchar_t *path, struct t_bmp *out_ptr)
 		TRACE(T_ERROR, "binary process failed");
 		return ERR_DO_BINARY_CONVERT_FAILED; 
 	}
+	if (path) {
+		ret = save_picture(path, out_ptr);
+	}
 
-	ret = save_picture(path, out_ptr);
 	if (ret != ERR_NO_ERR) {
 		TRACE(T_ERROR, "save file failed");
 		return ERR_SAVE_FILE_FAILED;
