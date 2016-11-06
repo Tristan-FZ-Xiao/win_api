@@ -9,40 +9,6 @@
 #include "snap_screen.h"
 #include "recognise.h"
 
-struct hp_info {
-	int cur_hp;
-int hp;
-};
-
-struct mp_info {
-	int cur_mp;
-	int mp;
-};
-
-enum {
-	WHITE_KEY_VALUE = 0xff,
-	BLACK_KEY_VALUE = 0x0,
-};
-
-enum {
-	FIND_FIRST = 1,
-	FIND_ALL,
-};
-
-enum {
-	NUM_0 = 0,
-	NUM_1,
-	NUM_2,
-	NUM_3,
-	NUM_4,
-	NUM_5,
-	NUM_6,
-	NUM_7,
-	NUM_8,
-	NUM_9,
-	NUM_M,	/* / */
-};
-
 struct role_status {
 	struct hp_info hp;
 	struct mp_info mp;
@@ -255,7 +221,47 @@ POINT goods_white_char[] = {
 	{0,	15}
 };
 
-int get_num_digit(int num)
+/* The charactors of the role graph:	"ha". */
+POINT role_black_char[] = {
+	{0,	0},
+	{4,	1},
+	{3,	2},
+	{1,	2},
+	{1,	8},
+	{3,	10},
+	{3,	4},
+	{3,	6},
+	{5,	5},
+	{4,	4},
+	{8,	1},
+	{8,	3},
+	{8,	5},
+	{11,	5},
+	{9,	4},
+	{10,	4},
+	{9,	2},
+	{10,	2}
+};
+
+POINT role_white_char[] = {
+	{1,	1},
+	{2,	1},
+	{3,	1},
+	{5,	1},
+	{6,	1},
+	{2,	5},
+	{4,	5},
+	{5,	4},
+	{8,	2},
+	{8,	4},
+	{9,	5},
+	{10,	5},
+	{11,	4},
+	{11,	3},
+	{12,	1},
+};
+
+static int get_num_digit(int num)
 {
 	int i;
 
@@ -268,7 +274,7 @@ int get_num_digit(int num)
 	return -1;
 }
 
-void print_num(int *ptr, int len)
+static void print_num(int *ptr, int len)
 {
 	int i;
 
@@ -278,7 +284,7 @@ void print_num(int *ptr, int len)
 	printf("\n");
 }
 
-void __calc_image_charactor(struct t_bmp *input, int *output)
+static void __calc_image_charactor(struct t_bmp *input, int *output)
 {
 	int w = input->bih.biWidth;
 	int h = input->bih.biHeight;
@@ -292,12 +298,21 @@ void __calc_image_charactor(struct t_bmp *input, int *output)
 	}
 }
 
-int get_num(int num, int new_bit)
+void calc_image_charactor(struct t_bmp *input, int *output)
+{
+	if (input && output)
+		__calc_image_charactor(input, output);
+	else {
+		TRACE(T_ERROR, "input or output NULL");
+	}
+}
+
+static int get_num(int num, int new_bit)
 {
 	return num * 10 + new_bit;
 }
 
-int get_num_charactor(int num)
+static int get_num_charactor(int num)
 {
 	int i = 0;
 
@@ -309,7 +324,7 @@ int get_num_charactor(int num)
 	return -1;
 }
 
-char *__recognise_image_num(char *ptr, int *len, int *out_num)
+static char *__recognise_image_num(char *ptr, int *len, int *out_num)
 {
 	int i;
 	int num = 0;
@@ -345,7 +360,7 @@ char *recognise_image_num(char *ptr, int *len, int *out_num)
 	return __recognise_image_num(ptr, len, out_num);
 }
 
-int calc_number_charactor(unsigned char *ptr, int len, unsigned char *num_charactor)
+static int calc_number_charactor(unsigned char *ptr, int len, unsigned char *num_charactor)
 {
 	int i, j;
 	int w = len / (8 * 4);
@@ -359,7 +374,7 @@ int calc_number_charactor(unsigned char *ptr, int len, unsigned char *num_charac
 	return ERR_NO_ERR;
 }
 
-void print_charactor(unsigned char ptr[][5], int len)
+static void print_charactor(unsigned char ptr[][5], int len)
 {
 	int i,j;
 
@@ -371,7 +386,7 @@ void print_charactor(unsigned char ptr[][5], int len)
 	}
 }
 
-int get_role_item(struct t_bmp *input, RECT target_rc, int *info)
+static int get_role_item(struct t_bmp *input, RECT target_rc, int *info)
 {
 	struct t_bmp output = {};
 	unsigned char *nums_charactor = NULL;
@@ -700,7 +715,7 @@ static void unit_test_calc_image_charactor(void)
 		}
 		output = new int[input.bih.biWidth];
 		memset(output, 0, sizeof(int) * input.bih.biWidth);
-		__calc_image_charactor(&input, output);
+		calc_image_charactor(&input, output);
 		print_num(output, input.bih.biWidth);
 		delete(input.data);
 		delete(output);
@@ -880,12 +895,12 @@ static int unit_test_get_goods_position(void)
 	}
 
 	ret = convert_gray(&input, BINARY_WEIGHTED_MEAN);
-	ret = convert2blackwhite(&input, ONLY_BLACK, 140);
+	ret = convert2blackwhite(&input, ONLY_BLACK, 100);
 
 	ret = get_target_position(&input, goods_black_char,
 		sizeof(goods_black_char)/sizeof(POINT),
 		goods_white_char, sizeof(goods_white_char)/sizeof(POINT),
-		FIND_ALL, p, &target_num, true);
+		FIND_ALL, p, &target_num, false);
 	if (ERR_NO_ERR == ret) {
 		int i;
 		for (i = 0; i < target_num; i ++) {
@@ -897,6 +912,40 @@ static int unit_test_get_goods_position(void)
 		TRACE(T_INFO, "Could not find the target\n");
 	}
 	save_picture(L"D://goods_1.bmp", &input);
+	delete input.data;
+	return 0;
+}
+
+static int unit_test_role_in_battle_info(void)
+{
+	struct t_bmp input = {};
+	int ret = 0;
+	POINT p[20] = {};
+	int target_num = 20;
+
+	ret = load_picture(L"D://role_i.bmp", &input);
+	if (ret != ERR_NO_ERR) {
+		return 0;
+	}
+
+	ret = convert_gray(&input, BINARY_WEIGHTED_MEAN);
+	ret = convert2blackwhite(&input, ONLY_BLACK, 100);
+
+	ret = get_target_position(&input, role_black_char,
+		sizeof(role_black_char)/sizeof(POINT),
+		role_white_char, sizeof(role_white_char)/sizeof(POINT),
+		FIND_FIRST, p, &target_num, true);
+	save_picture(L"D://find_role.bmp", &input);
+	if (ERR_NO_ERR == ret) {
+		int i;
+		for (i = 0; i < target_num; i ++) {
+			TRACE(T_INFO, "The target position (%d, %d)\n", (p + i)->x,
+				(p + i)->y);
+		}
+	}
+	else {
+		TRACE(T_INFO, "Could not find the target\n");
+	}
 	delete input.data;
 	return 0;
 }
@@ -920,7 +969,8 @@ int main()
 	unit_test_get_little_map_info();
 	map_info_output(&map_info);
 	*/
-	unit_test_get_goods_position();
+	//unit_test_get_goods_position();
+	unit_test_role_in_battle_info();
 
 	return 0;
 }
