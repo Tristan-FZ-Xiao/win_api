@@ -156,8 +156,8 @@ static int __get_screen_rect(struct t_bmp *in_ptr, RECT target_rc, struct t_bmp 
 
 	out_ptr->bfh.bfType			= 0x4d42;
 	out_ptr->bfh.bfSize			= len + 54;
-	out_ptr->bfh.bfReserved1		= 0;
-	out_ptr->bfh.bfReserved2		= 0;
+	out_ptr->bfh.bfReserved1			= 0;
+	out_ptr->bfh.bfReserved2			= 0;
 	out_ptr->bfh.bfOffBits			= 54;
 
 	out_ptr->bih.biSize			= 40;
@@ -166,7 +166,7 @@ static int __get_screen_rect(struct t_bmp *in_ptr, RECT target_rc, struct t_bmp 
 	out_ptr->bih.biPlanes			= 1;
 	out_ptr->bih.biBitCount			= 32;
 	out_ptr->bih.biCompression		= BI_RGB;
-	out_ptr->bih.biSizeImage		= len;
+	out_ptr->bih.biSizeImage			= len;
 	out_ptr->bih.biXPelsPerMeter		= 0;
 	out_ptr->bih.biYPelsPerMeter		= 0;
 	out_ptr->bih.biClrUsed			= 0;
