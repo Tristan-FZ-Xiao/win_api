@@ -230,6 +230,31 @@ POINT lmap_boss_white_char[] = {
 	{12,	6}
 };
 
+/* The charactors of the goods graph. */
+POINT goods_black_char[] = {
+	{5,	1},
+	{5,	-1},
+	{10,	1},
+	{10,	-1},
+	{5,	21},
+	{5,	23},
+	{10,	21},
+	{10,	23},
+	{-1,	5},
+	{1,	5}
+};
+
+POINT goods_white_char[] = {
+	{5,	0},
+	{10,	0},
+	{15,	0},
+	{5,	22},
+	{10,	22},
+	{15,	22},
+	{0,	5},
+	{0,	15}
+};
+
 int get_num_digit(int num)
 {
 	int i;
@@ -448,21 +473,21 @@ int get_role_gold(struct t_bmp *input, struct role_status *role)
 
 int get_target_position(struct t_bmp *input, POINT *charactor_black,
 			int black_len, POINT *charactor_white, int white_len,
-			int mode, POINT *target, int target_center)
+			int mode, POINT *target, int *target_len, int target_center)
 {
 	int i, j;
 	int x, y;
 	int d_x, d_y;		//delta_x and delta_y
 	int w = input->bih.biWidth;
 	int h = input->bih.biHeight;
+	int target_num = 0;
 
-	//TODO: need to achieve the FIND_ALL mode
 	//TODO: need to do the vague
 
 	if (NULL == input && NULL == input->data) {
 		return NULL;
 	}
-	for (i = 0; i < (int)input->len; i ++) {
+	for (i = 0; i < (int)input->len; i = i + 4) {
 		y = (i / 4) / w;
 		x = (i / 4) % w;
 		if (white_len > 0) {
@@ -502,17 +527,33 @@ int get_target_position(struct t_bmp *input, POINT *charactor_black,
 		}
 		if (j == black_len || j == white_len) {
 			if (target_center) {
-				target->x = x + (charactor_white + white_len - 1)->x / 2;
-				target->y = h - y - (charactor_white + white_len - 1)->y / 2;
+				(target + target_num)->x = x + (charactor_white + white_len - 1)->x / 2;
+				(target + target_num)->y = h - y - (charactor_white + white_len - 1)->y / 2;
 			}
 			else {
-				target->x = x;
-				target->y = h - y;
+				(target + target_num)->x = x;
+				(target + target_num)->y = h - y;
 			}
-			return ERR_NO_ERR;
+			target_num ++;
+			if (mode == FIND_FIRST) {
+				*target_len = 1;
+				return ERR_NO_ERR;
+			}
+			else {
+				if (target_num >= *target_len) {
+					*target_len = target_num;
+					return ERR_NO_ERR;
+				}
+			}
 		}
 	}
-	return ERR_TARGET_NOT_FOUND;
+
+	if (target_num == 0)
+		return ERR_TARGET_NOT_FOUND;
+	else {
+		*target_len = target_num;
+		return ERR_NO_ERR;
+	}
 }
 
 void map_info_output(struct map_status *map_info)
@@ -531,6 +572,7 @@ void map_info_output(struct map_status *map_info)
 int get_bigmap_info(struct t_bmp *input, struct map_status *map_info, int is_convert)
 {
 	int ret = ERR_NO_ERR;
+	int target_num = 1;
 
 	if (!is_convert) {
 		ret = convert_gray(input, BINARY_WEIGHTED_MEAN);
@@ -538,7 +580,7 @@ int get_bigmap_info(struct t_bmp *input, struct map_status *map_info, int is_con
 	}
 	ret = get_target_position(input, bmap_next_target_black_char,
 			sizeof(bmap_next_target_black_char)/sizeof(POINT), bmap_next_target_white_char,
-			sizeof(bmap_next_target_white_char)/sizeof(POINT), FIND_FIRST, &map_info->bmap_next_target, true);
+			sizeof(bmap_next_target_white_char)/sizeof(POINT), FIND_FIRST, &map_info->bmap_next_target, &target_num, true);
 	if (ret != ERR_NO_ERR) {
 		TRACE(T_ERROR, "Get big map info (bmap_next_target) error\n");
 		return ret;
@@ -546,7 +588,7 @@ int get_bigmap_info(struct t_bmp *input, struct map_status *map_info, int is_con
 
 	ret = get_target_position(input, bmap_role_black_char,
 			sizeof(bmap_role_black_char)/sizeof(POINT), bmap_role_white_char,
-			sizeof(bmap_role_white_char)/sizeof(POINT), FIND_FIRST, &map_info->bmap_role, true);
+			sizeof(bmap_role_white_char)/sizeof(POINT), FIND_FIRST, &map_info->bmap_role, &target_num, true);
 	if (ret != ERR_NO_ERR) {
 		TRACE(T_ERROR, "Get big map info (bmap_role_target) error\n");
 		return ret;
@@ -558,6 +600,7 @@ int get_littlemap_info(struct t_bmp *input, struct map_status *map_info, int is_
 {
 	POINT p = {};
 	int ret = ERR_NO_ERR;
+	int target_num = 1;
 
 	if (!is_convert) {
 		ret = convert_gray(input, BINARY_WEIGHTED_MEAN);
@@ -567,7 +610,7 @@ int get_littlemap_info(struct t_bmp *input, struct map_status *map_info, int is_
 	ret = get_target_position(input, lmap_black_char,
 		sizeof(lmap_black_char)/sizeof(POINT),
 		lmap_white_char, sizeof(lmap_white_char)/sizeof(POINT),
-		FIND_FIRST, &p, false);
+		FIND_FIRST, &p, &target_num, false);
 	if (ERR_NO_ERR == ret) {
 		struct t_bmp output = {};
 
@@ -584,17 +627,17 @@ int get_littlemap_info(struct t_bmp *input, struct map_status *map_info, int is_
 		ret = get_target_position(&output, lmap_next_target_black_char,
 			sizeof(lmap_next_target_black_char)/sizeof(POINT), lmap_next_target_white_char,
 			sizeof(lmap_next_target_white_char)/sizeof(POINT), FIND_FIRST,
-			&map_info->lmap_next_target, true);
+			&map_info->lmap_next_target, &target_num, true);
 
 		ret = get_target_position(&output, lmap_role_black_char,
 			sizeof(lmap_role_black_char)/sizeof(POINT), lmap_role_white_char,
 			sizeof(lmap_role_white_char)/sizeof(POINT), FIND_FIRST,
-			&map_info->lmap_role, true);
+			&map_info->lmap_role, &target_num, true);
 
 		ret = get_target_position(&output, lmap_boss_black_char,
 			sizeof(lmap_boss_black_char)/sizeof(POINT), lmap_boss_white_char,
 			sizeof(lmap_boss_white_char)/sizeof(POINT), FIND_FIRST,
-			&map_info->lmap_boss, true);
+			&map_info->lmap_boss, &target_num, true);
 		delete output.data;
 		return ret;
 	}
@@ -738,6 +781,7 @@ static int unit_test_get_map_role_info(void)
 {
 	struct t_bmp input = {};
 	int ret = 0;
+	int target_num = 1;
 	POINT p = {};
 
 	ret = load_picture(L"D://gate_2.bmp", &input);
@@ -751,7 +795,7 @@ static int unit_test_get_map_role_info(void)
 	ret = get_target_position(&input, lmap_role_black_char,
 		sizeof(lmap_role_black_char)/sizeof(POINT),
 		lmap_role_white_char, sizeof(lmap_role_black_char)/sizeof(POINT),
-		FIND_FIRST, &p, true);
+		FIND_FIRST, &p, &target_num, true);
 	if (ERR_NO_ERR == ret) {
 		TRACE(T_INFO, "The target position (%d, %d)\n", p.x, p.y);
 	}
@@ -766,6 +810,7 @@ static int unit_test_get_map_role_info(void)
 static int unit_test_get_map_next_info(void)
 {
 	struct t_bmp input = {};
+	int target_num = 1;
 	int ret = 0;
 	POINT p = {};
 
@@ -780,7 +825,7 @@ static int unit_test_get_map_next_info(void)
 	ret = get_target_position(&input, lmap_next_target_black_char,
 		sizeof(lmap_next_target_black_char)/sizeof(POINT),
 		lmap_next_target_white_char, sizeof(lmap_next_target_black_char)/sizeof(POINT),
-		FIND_FIRST, &p, true);
+		FIND_FIRST, &p, &target_num, true);
 	if (ERR_NO_ERR == ret) {
 		TRACE(T_INFO, "The target position (%d, %d)\n", p.x, p.y);
 	}
@@ -796,6 +841,7 @@ static int unit_test_get_map_boss_info(void)
 {
 	struct t_bmp input = {};
 	int ret = 0;
+	int target_num = 1;
 	POINT p = {};
 
 	ret = load_picture(L"D://gate_2.bmp", &input);
@@ -809,7 +855,7 @@ static int unit_test_get_map_boss_info(void)
 	ret = get_target_position(&input, lmap_boss_black_char,
 		sizeof(lmap_boss_black_char)/sizeof(POINT),
 		lmap_boss_white_char, sizeof(lmap_boss_white_char)/sizeof(POINT),
-		FIND_FIRST, &p, true);
+		FIND_FIRST, &p, &target_num, true);
 	if (ERR_NO_ERR == ret) {
 		TRACE(T_INFO, "The target position (%d, %d)\n", p.x, p.y);
 	}
@@ -817,6 +863,40 @@ static int unit_test_get_map_boss_info(void)
 		TRACE(T_INFO, "Could not find the target\n");
 	}
 	save_picture(L"D://map_role.bmp", &input);
+	delete input.data;
+	return 0;
+}
+
+static int unit_test_get_goods_position(void)
+{
+	struct t_bmp input = {};
+	int ret = 0;
+	POINT p[20] = {};
+	int target_num = 20;
+
+	ret = load_picture(L"D://things.bmp", &input);
+	if (ret != ERR_NO_ERR) {
+		return 0;
+	}
+
+	ret = convert_gray(&input, BINARY_WEIGHTED_MEAN);
+	ret = convert2blackwhite(&input, ONLY_BLACK, 140);
+
+	ret = get_target_position(&input, goods_black_char,
+		sizeof(goods_black_char)/sizeof(POINT),
+		goods_white_char, sizeof(goods_white_char)/sizeof(POINT),
+		FIND_ALL, p, &target_num, true);
+	if (ERR_NO_ERR == ret) {
+		int i;
+		for (i = 0; i < target_num; i ++) {
+			TRACE(T_INFO, "The target position (%d, %d)\n", (p + i)->x,
+				(p + i)->y);
+		}
+	}
+	else {
+		TRACE(T_INFO, "Could not find the target\n");
+	}
+	save_picture(L"D://goods_1.bmp", &input);
 	delete input.data;
 	return 0;
 }
@@ -835,9 +915,12 @@ int main()
 	//unit_test_get_map_role_info();
 	//unit_test_get_map_next_info();
 	//unit_test_get_map_boss_info();
+	/*
 	unit_test_get_big_map_info();
 	unit_test_get_little_map_info();
 	map_info_output(&map_info);
+	*/
+	unit_test_get_goods_position();
 
 	return 0;
 }
