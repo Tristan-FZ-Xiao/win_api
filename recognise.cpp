@@ -9,26 +9,8 @@
 #include "snap_screen.h"
 #include "recognise.h"
 
-#define GOODS_NUM	20
-
-struct role_status {
-	struct hp_info hp;
-	struct mp_info mp;
-	int gold;
-	int level;
-} role_info;
-
-struct map_status {
-	POINT	bmap_next_target;	/* The position in the big map(N) which after task, need to go to do something. */
-	POINT	bmap_role;		/* Role position in the big map(N) */
-	POINT	role;			/* Role position in Normal picture */
-	RECT	little_map;
-	POINT	lmap_role;		/* Role position in the little map(right-top) */
-	POINT	lmap_next_target;	/* The position in the littele map which need to go in the task. */
-	POINT	lmap_boss;		/* The position where is boss. */
-	POINT	*gold;			/* golden position */
-	POINT	*goods;			/* goods position */
-} map_info;
+struct role_status role_info;
+struct map_status map_info;
 
 /*	What we need in the module: do some basic recognition likes:
  *	1. Number;
@@ -1067,7 +1049,7 @@ static int unit_test_role_in_battle_info(void)
 	return 0;
 }
 
-#define __OWN_MAIN__ 1
+//#define __OWN_MAIN__ 1
 #ifdef __OWN_MAIN__
 
 int main()
