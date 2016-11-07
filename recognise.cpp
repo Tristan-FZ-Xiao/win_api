@@ -84,20 +84,27 @@ POINT bmap_role_black_char[] = {
 	{0,	9},
 	{11,	9},
 	{0,	11},
-	{11,	11}
+	{11,	11},
+	{3,	17},
+	{3,	15},
+	{5,	17},
+	{5,	15},
 };
 
 POINT bmap_role_white_char[] = {
-	{4,	0},
-	{7,	0},
-	{2,	3},
-	{9,	3},
-	{1,	5},
-	{10,	5},
-	{-1,	9},
-	{12,	9},
-	{-1,	11},
-	{12,	11}
+	{2,	11},
+	{2,	10},
+	{3,	11},
+	{3,	9},
+	{9,	11},
+	{9,	10},
+	{8,	9},
+	{3,	16},
+	{4,	16},
+	{5,	16},
+	{6,	16},
+	{4,	17},
+	{4,	15},
 };
 
 /* The charactors of little map graph. */
@@ -107,22 +114,29 @@ POINT lmap_black_char[] = {
 	{5,	0},
 	{10,	0},
 	{15,	0},
+	{30,	0},
+	{40,	0},
 	{0,	1},
 	{0,	5},
 	{0,	10},
-	{0,	15}
+	{0,	15},
+	{0,	30},
+	{0,	40},
 };
 
 POINT lmap_white_char[] = {
-	{0,	0},
 	{2,	1},
 	{7,	1},
 	{12,	1},
 	{17,	1},
+	{30,	1},
+	{40,	1},
 	{1,	2},
 	{1,	7},
 	{1,	12},
-	{1,	17}
+	{1,	17},
+	{1,	30},
+	{1,	40},
 };
 
 /* The charactors of the role graph which in little map. */
@@ -405,13 +419,13 @@ static int get_role_item(struct t_bmp *input, RECT target_rc, int *info)
 	int ret = 0;
 	int len = 0;
 	int tmp = 0;
+	int val = 0;
 	int i;
 
 	ret = get_screen_rect(input, target_rc, &output);
 	if (ret != ERR_NO_ERR) {
 		return ret;
 	}
-	//save_picture(L"D://tmp.bmp", &output);
 	len = output.len / ((target_rc.bottom - target_rc.top) * 4);
 	nums_charactor = new unsigned char[len];
 	memset(nums_charactor, 0 , len);
@@ -432,9 +446,11 @@ static int get_role_item(struct t_bmp *input, RECT target_rc, int *info)
 
 		if (NUM_M == tmp) {
 			i ++;
+			val = 0;
 		}
 		else {
-			info[i] = info[i] * 10 + tmp;
+			val = val * 10 + tmp;
+			info[i] = val;
 		}
 		//printf("recognise number: %d\n", tmp);
 	} while (len > 0 && *ptr != ' ');
@@ -588,7 +604,7 @@ void map_info_output(struct map_status *map_info)
 	TRACE(T_INFO, "============== MAP INFO ==============\n");
 	TRACE(T_INFO, "role:\t\t\t(%d,\t%d)\n", map_info->role.x, map_info->role.y);
 	for (i = 0; i < GOODS_NUM; i ++) {
-		if (map_info->goods && (map_info->goods + i)->x == 0 && (map_info->goods + i)->y == 0) {
+		if (map_info->goods == NULL || ((map_info->goods + i)->x == 0 && (map_info->goods + i)->y == 0)) {
 			break;
 		}
 		TRACE(T_INFO, "goods:\t\t\t(%d,\t%d)\n", (map_info->goods + i)->x, (map_info->goods + i)->y);
@@ -615,18 +631,10 @@ int get_bigmap_info(struct t_bmp *input, struct map_status *map_info, int is_con
 	ret = get_target_position(input, bmap_next_target_black_char,
 			sizeof(bmap_next_target_black_char)/sizeof(POINT), bmap_next_target_white_char,
 			sizeof(bmap_next_target_white_char)/sizeof(POINT), FIND_FIRST, &map_info->bmap_next_target, &target_num, true);
-	if (ret != ERR_NO_ERR) {
-		TRACE(T_ERROR, "Get big map info (bmap_next_target) error\n");
-		return ret;
-	}
 
 	ret = get_target_position(input, bmap_role_black_char,
 			sizeof(bmap_role_black_char)/sizeof(POINT), bmap_role_white_char,
 			sizeof(bmap_role_white_char)/sizeof(POINT), FIND_FIRST, &map_info->bmap_role, &target_num, true);
-	if (ret != ERR_NO_ERR) {
-		TRACE(T_ERROR, "Get big map info (bmap_role_target) error\n");
-		return ret;
-	}
 	return ret;
 }
 
@@ -807,7 +815,7 @@ static int unit_test_get_big_map_info(void)
 	struct t_bmp input = {};
 	int ret = 0;
 
-	ret = load_picture(L"D://map_1.bmp", &input);
+	ret = load_picture(L"D://0.4.bmp", &input);
 	if (ret != ERR_NO_ERR) {
 		return 0;
 	}
@@ -815,7 +823,7 @@ static int unit_test_get_big_map_info(void)
 	ret = convert2blackwhite(&input, ONLY_BLACK, 0);
 
 	ret = get_bigmap_info(&input, &map_info, true);
-	save_picture(L"D://tmp_map_info.bmp", &input);
+	save_picture(L"D://map_role.bmp", &input);
 	delete input.data;
 
 	return 0;
@@ -862,7 +870,9 @@ static int unit_test_loop(void)
 	struct t_bmp input = {};
 	int ret = 0;
 	int flag = 1;
+	int i = 0;
 	RECT target_rc = {};
+	wchar_t cmd[128] = {};
 
 	ret = auto_mob_init();
 	auto_mob.mob_hwnd = FindWindow(NULL, auto_mob.mob_name);
@@ -872,13 +882,15 @@ static int unit_test_loop(void)
 
 	while (1) {
 		ret = get_screen(auto_mob.mob_hwnd, NULL, &input);
+		//wsprintf(cmd, L"D://0.%d.bmp", i ++);
+		//save_picture(cmd, &input);
 		if (ret != ERR_NO_ERR) {
 			return 0;
 		}
 		if (flag) {
 			ret = convert_gray(&input, BINARY_WEIGHTED_MEAN);
 			ret = convert2blackwhite(&input, ONLY_BLACK, 0);
-			memset(&role_info, 0, sizeof(role_info));
+			//memset(&role_info, 0, sizeof(role_info));
 			ret = get_role_hp_mp_level(&input, &role_info);
 			ret = get_role_gold(&input, &role_info);
 			ret = get_normal_info(&input, &map_info, true);
@@ -886,12 +898,13 @@ static int unit_test_loop(void)
 		}
 		else {
 			ret = get_littlemap_info(&input, &map_info, false);
+			wsprintf(cmd, L"D://1.0.%d.bmp", i ++);
+			save_picture(cmd, &input);
 		}
 		flag ^= 1;
-
 		delete input.data;
 		map_info_output(&map_info);
-		Sleep(1000);
+		Sleep(5000);
 	}
 	return 0;
 }
@@ -903,13 +916,13 @@ static int unit_test_get_map_role_info(void)
 	int target_num = 1;
 	POINT p = {};
 
-	ret = load_picture(L"D://gate_2.bmp", &input);
+	ret = load_picture(L"D://0.10.bmp", &input);
 	if (ret != ERR_NO_ERR) {
 		return 0;
 	}
 
 	ret = convert_gray(&input, BINARY_WEIGHTED_MEAN);
-	ret = convert2blackwhite(&input, ONLY_BLACK, 80);
+	ret = convert2blackwhite(&input, ONLY_BLACK, 0);
 
 	ret = get_target_position(&input, lmap_role_black_char,
 		sizeof(lmap_role_black_char)/sizeof(POINT),
