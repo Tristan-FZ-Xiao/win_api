@@ -92,7 +92,7 @@ static int get_key_pos(unsigned char key, int *x, int *y)
 	return 0;
 }
 
-static int osk_key_down(unsigned char key)
+int osk_key_down(unsigned char key)
 {
 	int x, y;
 	int ret = 0;
@@ -100,12 +100,12 @@ static int osk_key_down(unsigned char key)
 
 	get_key_pos(key, &x, &y);
 	lp = (LPARAM) (x + (y << 16));
-	TRACE(T_INFO, "X: %d, Y: %d", x, y);
+	//TRACE(T_INFO, "X: %d, Y: %d", x, y);
 	ret = PostMessage(osk_info.hwnd, WM_LBUTTONDOWN , 0, lp);
 	return ret;
 }
 
-static int osk_key_up(unsigned char key)
+int osk_key_up(unsigned char key)
 {
 	int x, y;
 	int ret = 0;

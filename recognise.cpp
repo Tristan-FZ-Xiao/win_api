@@ -690,10 +690,14 @@ int get_normal_info(struct t_bmp *input, struct map_status *map_info, int is_con
 		goods_white_char, sizeof(goods_white_char)/sizeof(POINT),
 		FIND_ALL, map_info->goods, &target_num, false);
 	target_num = 1;
+	memset(&map_info->role, 0, sizeof(POINT));
 	ret = get_target_position(input, role_black_char,
 		sizeof(role_black_char)/sizeof(POINT),
 		role_white_char, sizeof(role_white_char)/sizeof(POINT),
 		FIND_ALL, &map_info->role, &target_num, false);
+	map_info->role.x += 12;
+	map_info->role.y += 94;
+
 	return ERR_NO_ERR;
 }
 

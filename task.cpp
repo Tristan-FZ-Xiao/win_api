@@ -69,7 +69,7 @@ int dealwith_task_item(void)
 	return ERR_NO_ERR;
 }
 
-#define __OWN_MAIN__ 1
+//#define __OWN_MAIN__ 1
 #ifdef __OWN_MAIN__
 
 int main()
