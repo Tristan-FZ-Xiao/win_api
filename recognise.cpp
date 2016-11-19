@@ -453,7 +453,8 @@ int get_role_hp_mp_level(struct t_bmp *input, struct role_status *role)
 	rc.top = 283;
 	rc.bottom = 291;
 	ret = get_role_item(input, rc, (int *)&role->hp);
-	printf("Current HP %d, HP %d\n", role->hp.cur_hp, role->hp.hp);
+	printf("Current HP %d, HP %d, Last HP %d\n", role->hp.cur_hp, role->hp.hp,
+		role->hp.last_hp);
 
 	/* Get the role's MP position*/
 	rc.left = 290;
@@ -461,7 +462,8 @@ int get_role_hp_mp_level(struct t_bmp *input, struct role_status *role)
 	rc.top = 283;
 	rc.bottom = 291;
 	ret = get_role_item(input, rc, (int *)&role->mp);
-	printf("Current MP %d, MP %d\n", role->mp.cur_mp, role->mp.mp);
+	printf("Current MP %d, MP %d, Last HP %d\n", role->mp.cur_mp, role->mp.mp,
+		role->mp.last_mp);
 
 	/* Get the role's level position*/
 	rc.left = 200;
@@ -470,6 +472,10 @@ int get_role_hp_mp_level(struct t_bmp *input, struct role_status *role)
 	rc.bottom = 251;
 	ret = get_role_item(input, rc, (int *)&role->level);
 	printf("Level %d\n", role->level);
+	if (role->hp.cur_hp == 0 && role->mp.cur_mp == 0 &&
+		role->level == 0) {
+		return ERR_GET_ROLE_INFO_FAILED;
+	}
 	return ret;
 }
 

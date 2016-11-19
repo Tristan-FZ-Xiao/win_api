@@ -183,7 +183,7 @@ static int unit_test_send_info_to_notepad(void)
 	if (osk_init() == -1)
 		return -1;
 	notepad_hwnd = FindWindow(NULL, L"无标题 - 记事本");
-	osk_send_char(notepad_hwnd, 'a');
+	osk_send_char(notepad_hwnd, (char)77);
 	return 0;
 }
 
@@ -219,9 +219,11 @@ static int unit_test_simple_login_dnf(void)
 	return 0;
 }
 
+//#define __OWN_MAIN__ 1
 #ifdef __OWN_MAIN__
 int main(int argc, char *argv)
 {
-	return unit_test_simple_login_dnf();
+	//return unit_test_simple_login_dnf();
+	return unit_test_send_info_to_notepad();
 }
 #endif

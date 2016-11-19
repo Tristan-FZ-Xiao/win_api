@@ -1,14 +1,18 @@
 #ifndef __RECOGNISE_H__
 #define __RECOGNISE_H__
 
+#include "timer.h"
+
 struct hp_info {
 	int cur_hp;
 	int hp;
+	int last_hp;
 };
 
 struct mp_info {
 	int cur_mp;
 	int mp;
+	int last_mp;
 };
 
 struct role_status {
@@ -16,6 +20,7 @@ struct role_status {
 	struct mp_info mp;
 	int gold;
 	int level;
+	struct t_timer role_timer;
 };
 
 struct map_status {
@@ -28,6 +33,7 @@ struct map_status {
 	POINT	lmap_boss;		/* The position where is boss. */
 	POINT	*gold;			/* golden position */
 	POINT	*goods;			/* goods position */
+	struct t_timer map_timer;
 };
 
 enum {

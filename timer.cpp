@@ -8,19 +8,25 @@
 #include "debug.h"
 #include "output_handle.h"
 #include "snap_screen.h"
-
-typedef void (*fn)(void *data);
-
-struct t_timer {
-	struct t_timer *prev;
-	struct t_timer *next;
-	fn cb;
-	void *data;
-	int expired;
-	int init_expired;
-};
+#include "timer.h"
 
 struct t_timer *timer_head = NULL;
+
+int timer_init(void)
+{
+	WORD wVersionRequested;
+	WSADATA wsaData;
+	int err;
+
+	wVersionRequested = MAKEWORD(2, 2);
+	err = WSAStartup(wVersionRequested,&wsaData);
+
+	if (err != 0) {
+		printf("WSAStartup failed witherror: %d\n", err);
+		return ERR_COMMON_NULL_ERROR;
+	}
+	return ERR_NO_ERR;
+}
 
 int timer_add(struct t_timer *entry)
 {
@@ -119,39 +125,41 @@ void test_1(void *data)
 	TRACE(T_ERROR, "test_1\n");
 }
 
-struct t_timer a;
+void test_2(void *data)
+{
+	TRACE(T_ERROR, "test_2\n");
+}
+
+struct t_timer a, b;
 
 int unit_test_timer(void)
 {
 
 	a.cb = test_1;
 	a.data = NULL;
-	a.expired = 1000;
-	a.init_expired = 1000;
+	a.expired = 100;
+	a.init_expired = 100;
+	b.cb = test_2;
+	b.data = NULL;
+	b.expired = 200;
+	b.init_expired = 200;
 
 	timer_add(&a);
-	timer_del(&a);
+	timer_add(&b);
 	timer_run();
 	return 0;
 }
 
-#define __OWN_MAIN__ 1
+//#define __OWN_MAIN__ 1
 #ifdef __OWN_MAIN__
 int main()
 {
-	WORD wVersionRequested;
-	WSADATA wsaData;
-	int err;
+	int ret = ERR_NO_ERR;
 
-	wVersionRequested = MAKEWORD(2, 2);
-	err = WSAStartup(wVersionRequested,&wsaData);
-
-	if (err != 0) {
-		printf("WSAStartup failed witherror: %d\n", err);
-		return 1;
+	ret = timer_init();
+	if (ret != ERR_NO_ERR) {
+		return unit_test_timer();
 	}
-	return unit_test_timer();
-
 	WSACleanup();
 }
 #endif /* __OWN_MAIN__ */
