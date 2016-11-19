@@ -9,9 +9,12 @@
 #include "snap_screen.h"
 #include "timer.h"
 #include "task.h"
+#include "walk.h"
 
 #define ROLE_EXPIRE_TIME	2000		/* 2000 ms */
 #define MAP_EXPIRE_TIME		100		/* 100 ms */
+#define CALL_GUARD_EXPIRE_TIME	1500		/* 5000 ms */
+#define GET_THINGS_EXPIRE_TIME	1500		/* 5000 ms */
 
 struct task_status task_info;
 
@@ -73,7 +76,6 @@ void get_role_info_init(void)
 {
 	task_info.role.role_timer.cb = get_role_info_cb;
 	task_info.role.role_timer.data = &task_info.role;
-	task_info.role.role_timer.expired = ROLE_EXPIRE_TIME;
 	task_info.role.role_timer.init_expired = ROLE_EXPIRE_TIME;
 	timer_add(&task_info.role.role_timer);
 }
@@ -103,16 +105,85 @@ void get_map_info_init(void)
 {
 	task_info.map.map_timer.cb = get_map_info_cb;
 	task_info.map.map_timer.data = &task_info.map;
-	task_info.map.map_timer.expired = MAP_EXPIRE_TIME;
 	task_info.map.map_timer.init_expired = MAP_EXPIRE_TIME;
 	timer_add(&task_info.map.map_timer);
 }
 
+static int first = 0;
+void call_guard_cb(void *data)
+{
+	struct task_status *task = (struct task_status *)data;
+
+	if (task == NULL)
+		return;
+
+	if (!task->call_guard_first) {
+		osk_send_char(auto_mob.mob_hwnd, 'd');
+		Sleep(1200);
+		osk_send_char(auto_mob.mob_hwnd, 'y');
+		Sleep(1200);
+		osk_send_char(auto_mob.mob_hwnd, 'w');
+		Sleep(600);
+		osk_send_char(auto_mob.mob_hwnd, 'e');
+		Sleep(600);
+		osk_send_char(auto_mob.mob_hwnd, 'r');
+		Sleep(600);
+		osk_send_char(auto_mob.mob_hwnd, 'r');
+		Sleep(600);
+		task->call_guard_first = 1;
+	}
+	else {
+		osk_send_char(auto_mob.mob_hwnd, 'd');
+		Sleep(100);
+		osk_send_char(auto_mob.mob_hwnd, 'y');
+		Sleep(100);
+		osk_send_char(auto_mob.mob_hwnd, 'w');
+		Sleep(100);
+		osk_send_char(auto_mob.mob_hwnd, 'e');
+		Sleep(100);
+		osk_send_char(auto_mob.mob_hwnd, 'r');
+		Sleep(100);
+	}
+	/* bit them */
+	osk_send_char(auto_mob.mob_hwnd, 'q');
+}
+
+void call_guard_init(void)
+{
+	task_info.call_guard_timer.cb = call_guard_cb;
+	task_info.call_guard_timer.data = (void *)&task_info;
+	task_info.call_guard_timer.init_expired = CALL_GUARD_EXPIRE_TIME;
+	timer_add(&task_info.call_guard_timer);
+}
+
+void get_things_cb(void *data)
+{
+	struct map_status *map_info = (struct map_status *)data;
+	if (map_info->goods != NULL && map_info->goods[0].x &&
+		map_info->goods[0].y) {
+		walk_to(map_info->goods[0], 200);
+	}
+	else {
+		POINT tmp = {map_info->role.x + 40, map_info->role.y};
+		walk_to(tmp, 200);
+		TRACE(T_INFO, "Could not find goods\n");
+	}
+}
+
+void get_things_init(void)
+{
+	task_info.get_things_timer.cb = get_things_cb;
+	task_info.get_things_timer.data = (void *)&task_info.map;
+	task_info.get_things_timer.init_expired = GET_THINGS_EXPIRE_TIME;
+	timer_add(&task_info.get_things_timer);
+}
 
 void unit_test_task_item(void)
 {
 	get_role_info_init();
 	get_map_info_init();
+	call_guard_init();
+	get_things_init();
 	timer_run();
 }
 
